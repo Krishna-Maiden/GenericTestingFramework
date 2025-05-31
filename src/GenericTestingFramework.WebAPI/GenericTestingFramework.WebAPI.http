@@ -1,0 +1,6 @@
+@GenericTestingFramework.WebAPI_HostAddress = http://localhost:5297
+
+GET {{GenericTestingFramework.WebAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,55 @@
+GenericTestingFramework/
+├── .gitignore
+├── Directory.Build.props
+├── GenericTestingFramework.sln
+├── README.md
+├── src/
+│   ├── GenericTestingFramework.Core/
+│   │   ├── Models/
+│   │   │   ├── Enums.cs
+│   │   │   ├── TestScenario.cs
+│   │   │   ├── TestStep.cs
+│   │   │   └── TestResult.cs
+│   │   ├── Interfaces/
+│   │   │   ├── ILLMService.cs
+│   │   │   ├── ITestExecutor.cs
+│   │   │   └── ITestRepository.cs
+│   │   └── GenericTestingFramework.Core.csproj
+│   ├── GenericTestingFramework.Services/
+│   │   ├── LLM/
+│   │   │   ├── OpenAILLMService.cs
+│   │   │   └── LLMConfiguration.cs
+│   │   ├── Executors/
+│   │   │   ├── BaseTestExecutor.cs
+│   │   │   ├── UITestExecutor.cs
+│   │   │   └── APITestExecutor.cs
+│   │   ├── Repository/
+│   │   │   └── InMemoryTestRepository.cs
+│   │   ├── TestAutomationService.cs
+│   │   └── GenericTestingFramework.Services.csproj
+│   ├── GenericTestingFramework.WebAPI/
+│   │   ├── Program.cs
+│   │   ├── appsettings.json
+│   │   ├── appsettings.Development.json
+│   │   └── GenericTestingFramework.WebAPI.csproj
+│   └── GenericTestingFramework.Console/
+│       ├── Program.cs
+│       └── GenericTestingFramework.Console.csproj
+├── tests/
+│   ├── GenericTestingFramework.Tests.Unit/
+│   │   └── GenericTestingFramework.Tests.Unit.csproj
+│   └── GenericTestingFramework.Tests.Integration/
+│       └── GenericTestingFramework.Tests.Integration.csproj
+└── docs/
+    └── README.md
+
+
+
+    GenericTestingFramework/
+├── README.md
+├── src/
+│   ├── GenericTestingFramework.Services/
+│   │   ├── Executors/
+│   │   │   ├── UITestExecutor.cs
+│   │   ├── TestAutomationService.cs
+│   │   └── GenericTestingFramework.Services.csproj
