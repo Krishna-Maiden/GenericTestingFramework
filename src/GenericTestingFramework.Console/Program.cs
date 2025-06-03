@@ -9,6 +9,7 @@ using GenericTestingFramework.Services.Repository;
 using GenericTestingFramework.Services.Executors;
 using GenericTestingFramework.Services.Documents;
 using GenericTestingFramework.Services.TestGeneration;
+using GenericTestingFramework.Services.Documents.Models;
 
 Console.WriteLine("🚀 Dynamic Test Generation Framework - Console Application");
 Console.WriteLine("========================================================");
@@ -39,13 +40,15 @@ try
     services.Configure<LLMConfiguration>(
         configuration.GetSection(LLMConfiguration.SectionName));
 
-    // Configure UI Test settings
-    services.Configure<UITestConfiguration>(
-        configuration.GetSection("UITestConfiguration"));
+    // Create and register UI Test Configuration directly
+    var uiTestConfig = new UITestConfiguration();
+    configuration.GetSection("UITestConfiguration").Bind(uiTestConfig);
+    services.AddSingleton(uiTestConfig);
 
-    // Configure API Test settings
-    services.Configure<APITestConfiguration>(
-        configuration.GetSection("APITestConfiguration"));
+    // Create and register API Test Configuration directly  
+    var apiTestConfig = new APITestConfiguration();
+    configuration.GetSection("APITestConfiguration").Bind(apiTestConfig);
+    services.AddSingleton(apiTestConfig);
 
     // Add HTTP clients
     services.AddHttpClient<OpenAILLMService>();
@@ -92,7 +95,7 @@ try
         }
     }
 
-    Console.WriteLine("\nEnter your choice (1, 2, or 3):");
+    Console.WriteLine($"\nEnter your choice (1, 2{(userStoryFiles.Any() ? ", or 3" : "")}):");
     var choice = Console.ReadLine()?.Trim();
 
     UserStoryDocument? document = null;
@@ -300,10 +303,13 @@ static List<string> GetAvailableUserStoryFiles()
     var files = new List<string>();
     var searchPaths = new[]
     {
+        "docs/user-stories",
         "docs",
         "user-stories",
         ".",
+        "../../../docs/user-stories",
         "../../../docs",
+        "../../../../docs/user-stories",
         "../../../../docs"
     };
 
@@ -435,26 +441,7 @@ static async Task<UserStoryDocument?> HandleFileSelection(IDocumentManager docum
 
 #endregion
 
-// Configuration classes for Console app
-public class UITestConfiguration
-{
-    public string BaseUrl { get; set; } = string.Empty;
-    public bool Headless { get; set; } = false; // Set to false to see the browser during testing
-    public string WindowSize { get; set; } = "1920,1080";
-    public int DefaultTimeoutSeconds { get; set; } = 30;
-    public int ImplicitWaitSeconds { get; set; } = 10;
-    public int MaxParallelSessions { get; set; } = 1;
-    public string ScreenshotPath { get; set; } = "screenshots";
-    public bool CaptureScreenshotOnFailure { get; set; } = true; // Enable screenshots for debugging
-    public Dictionary<string, object> AdditionalOptions { get; set; } = new();
-}
-
-public class APITestConfiguration
-{
-    public int DefaultTimeoutSeconds { get; set; } = 30;
-    public int MaxConcurrentRequests { get; set; } = 3;
-    public Dictionary<string, string> DefaultHeaders { get; set; } = new();
-}
+#region Mock API Executor
 
 // Keep the mock API executor for now since we're focusing on UI testing
 public class MockAPITestExecutor : ITestExecutor
@@ -525,3 +512,5 @@ public class MockAPITestExecutor : ITestExecutor
         return Task.CompletedTask;
     }
 }
+
+#endregion

@@ -1,4 +1,4 @@
-# AI-Powered Generic Testing Framework - Project Structure
+# GenericTestingFramework - Complete Project Structure
 
 ```
 GenericTestingFramework/
@@ -8,200 +8,354 @@ GenericTestingFramework/
 ├── README.md
 ├── Structure.txt
 │
+├── docs/
+│   ├── README.md                                # 📖 Comprehensive documentation
+│   └── user-stories/                           # 🆕 User story files directory
+│       ├── confessions_portal_auth.txt         # 🎯 Your Confessions Portal test case
+│       ├── ecommerce_checkout.txt               # 📦 E-commerce checkout example
+│       ├── user_registration.txt                # 👤 User registration example
+│       └── api_testing.txt                      # 🔌 API testing example
+│
 ├── src/
 │   ├── GenericTestingFramework.Core/
 │   │   ├── GenericTestingFramework.Core.csproj
 │   │   ├── Interfaces/
-│   │   │   ├── ILLMService.cs                    # LLM service interface
-│   │   │   ├── ITestExecutor.cs                 # Test executor interface
-│   │   │   └── ITestRepository.cs               # Repository interface
+│   │   │   ├── ILLMService.cs                   # 🤖 LLM service interface with validation
+│   │   │   ├── ITestExecutor.cs                 # 🔧 Test executor interface with capabilities
+│   │   │   └── ITestRepository.cs               # 💾 Repository interface with search
 │   │   └── Models/
-│   │       ├── Enums.cs                         # TestType, TestStatus, TestPriority enums
-│   │       ├── TestScenario.cs                  # Test scenario model
-│   │       ├── TestStep.cs                      # Test step model
-│   │       └── TestResult.cs                    # Test result and step result models
+│   │       ├── Enums.cs                         # 📊 TestType, TestStatus, TestPriority, TestEnvironment
+│   │       ├── TestScenario.cs                  # 📋 Complete test scenario with validation
+│   │       ├── TestStep.cs                      # 🔄 Test step with parameters and validation rules
+│   │       └── TestResult.cs                    # 📈 Detailed test results with metrics
 │   │
 │   ├── GenericTestingFramework.Services/
 │   │   ├── GenericTestingFramework.Services.csproj
-│   │   ├── TestAutomationService.cs             # Main orchestration service
-│   │   ├── Documents/                           # 🆕 Document management
-│   │   │   └── DocumentManager.cs               # User story document manager
-│   │   ├── TestGeneration/                      # 🆕 Dynamic test generation
-│   │   │   └── DynamicTestGenerator.cs          # Dynamic test case generator
+│   │   ├── TestAutomationService.cs             # 🎯 Main orchestration service
+│   │   │
+│   │   ├── Documents/                           # 🆕 Document Management System
+│   │   │   ├── IDocumentManager.cs              # 📄 Document manager interface
+│   │   │   ├── DocumentManager.cs               # 📁 File upload and text processing
+│   │   │   └── UserStoryDocument.cs             # 📝 Document model with metadata
+│   │   │
+│   │   ├── TestGeneration/                      # 🆕 Dynamic Test Generation Engine
+│   │   │   ├── DynamicTestGenerator.cs          # 🧠 AI-powered test generation (replaces hardcoded)
+│   │   │   ├── UserStoryAnalysis.cs             # 🔍 NLP analysis of user stories
+│   │   │   └── TestStepGenerator.cs             # ⚙️ Smart test step creation
+│   │   │
 │   │   ├── LLM/
-│   │   │   ├── OpenAILLMService.cs              # OpenAI integration
-│   │   │   └── LLMConfiguration.cs              # LLM configuration
+│   │   │   ├── OpenAILLMService.cs              # 🤖 OpenAI integration with error handling
+│   │   │   └── LLMConfiguration.cs              # ⚙️ LLM configuration with validation
+│   │   │
 │   │   ├── Executors/
-│   │   │   ├── BaseTestExecutor.cs              # Base executor with common functionality
-│   │   │   ├── UITestExecutor.cs                # Selenium WebDriver UI testing
-│   │   │   └── APITestExecutor.cs               # HTTP API testing
+│   │   │   ├── BaseTestExecutor.cs              # 🏗️ Base executor with common functionality
+│   │   │   ├── UITestExecutor.cs                # 🌐 Complete Selenium WebDriver implementation
+│   │   │   └── APITestExecutor.cs               # 🔌 HTTP API testing with JSON validation
+│   │   │
 │   │   └── Repository/
-│   │       └── InMemoryTestRepository.cs        # In-memory data storage
+│   │       └── InMemoryTestRepository.cs        # 💾 In-memory storage with search capabilities
 │   │
 │   ├── GenericTestingFramework.WebAPI/
 │   │   ├── GenericTestingFramework.WebAPI.csproj
-│   │   ├── Program.cs                           # Web API with minimal APIs
-│   │   ├── appsettings.json                     # Production configuration
-│   │   ├── appsettings.Development.json         # Development configuration
-│   │   ├── GenericTestingFramework.WebAPI.http  # HTTP test file
+│   │   ├── Program.cs                           # 🌐 Web API with minimal APIs and Swagger
+│   │   ├── appsettings.json                     # ⚙️ Production configuration
+│   │   ├── appsettings.Development.json         # 🔧 Development configuration
+│   │   ├── GenericTestingFramework.WebAPI.http  # 🧪 HTTP test requests
 │   │   └── Properties/
-│   │       └── launchSettings.json              # Launch profiles
+│   │       └── launchSettings.json              # 🚀 Launch profiles
 │   │
 │   └── GenericTestingFramework.Console/
 │       ├── GenericTestingFramework.Console.csproj
-│       ├── Program.cs                           # 🔄 Updated console app with dynamic generation
-│       └── appsettings.json                     # Console configuration
+│       ├── Program.cs                           # 🖥️ Interactive console with dynamic generation
+│       └── appsettings.json                     # ⚙️ Console app configuration
 │
 ├── tests/
 │   ├── GenericTestingFramework.Tests.Unit/
 │   │   ├── GenericTestingFramework.Tests.Unit.csproj
-│   │   └── TestAutomationServiceTests.cs        # Unit tests
+│   │   ├── TestAutomationServiceTests.cs        # 🧪 Service layer unit tests
+│   │   ├── DynamicTestGeneratorTests.cs         # 🆕 Test generation unit tests
+│   │   └── DocumentManagerTests.cs             # 🆕 Document management tests
 │   │
 │   └── GenericTestingFramework.Tests.Integration/
 │       ├── GenericTestingFramework.Tests.Integration.csproj
-│       └── TestExecutionIntegrationTests.cs     # Integration tests
+│       ├── TestExecutionIntegrationTests.cs     # 🔗 End-to-end integration tests
+│       └── FileUploadIntegrationTests.cs       # 🆕 File processing integration tests
 │
-├── docs/
-│   └── README.md                                # Comprehensive documentation
+├── screenshots/                                 # 📸 Auto-generated test screenshots
+│   ├── step_1_20241203_143022.png
+│   └── failed_test_20241203_143025.png
 │
-├── screenshots/                                 # Auto-generated screenshots
+└── logs/                                        # 📊 Application logs
+    ├── app-20241203.log
+    └── test-execution-20241203.log
+```
+
+## 🔥 Key Features by Layer
+
+### 📦 Core Layer (`GenericTestingFramework.Core`)
+```
+├── Interfaces/
+│   ├── ILLMService.cs           # Test generation, analysis, validation
+│   ├── ITestExecutor.cs         # Multi-browser UI and API execution
+│   └── ITestRepository.cs       # Data persistence with advanced search
 │
-└── user-stories/                               # 🆕 Example user story files
-    ├── confessions_portal_auth.txt             # Confessions portal authentication
-    ├── ecommerce_checkout.txt                  # E-commerce checkout flow
-    ├── user_registration.txt                   # User registration flow
-    └── api_testing.txt                         # API testing scenarios
+└── Models/
+    ├── Enums.cs                 # TestType, TestStatus, TestPriority, TestEnvironment
+    ├── TestScenario.cs          # Complete scenario with steps, metadata, validation
+    ├── TestStep.cs              # Detailed steps with parameters, timeouts, screenshots
+    └── TestResult.cs            # Comprehensive results with performance metrics
 ```
 
-## 🔥 New Features Added
-
-### 📄 Document Management Layer
+### 🔧 Services Layer (`GenericTestingFramework.Services`)
 ```
-Services/Documents/
-├── IDocumentManager.cs         # Interface for document operations
-├── DocumentManager.cs          # Manages user story documents
-└── UserStoryDocument.cs        # Document model with metadata
-```
-
-### 🤖 Dynamic Test Generation Engine
-```
-Services/TestGeneration/
-├── DynamicTestGenerator.cs     # Replaces hardcoded MockLLMService
-├── UserStoryAnalysis.cs        # Analysis result model
-└── TestGenerationEngine.cs     # Core generation logic
-```
-
-## 📁 Key File Purposes
-
-### Core Layer
-- **`ILLMService.cs`**: Contract for test generation services
-- **`ITestExecutor.cs`**: Contract for test execution engines  
-- **`TestScenario.cs`**: Complete test scenario with steps and metadata
-- **`TestResult.cs`**: Execution results with step-by-step details
-
-### Services Layer
-- **`DocumentManager.cs`**: 
-  - Upload user story files (.txt, .md, .docx)
-  - Create documents from text input
-  - Extract project context automatically
-  - Manage document lifecycle
-
-- **`DynamicTestGenerator.cs`**:
-  - Analyzes user stories using NLP techniques
-  - Extracts URLs, credentials, actions, form fields
-  - Generates test steps dynamically (no hardcoding)
-  - Determines test type and priority automatically
-
-- **`UITestExecutor.cs`**: 
-  - Complete Selenium WebDriver implementation
-  - Supports all major UI actions (click, type, verify, etc.)
-  - Cross-browser compatibility (Chrome, Firefox, Edge)
-  - Screenshot capture and error handling
-
-- **`TestAutomationService.cs`**: 
-  - Main orchestration layer
-  - Coordinates document management and test generation
-  - Manages test execution and results
-
-### Console Application
-- **`Program.cs`**: 
-  - Interactive demo of dynamic test generation
-  - User story input (text or file upload)
-  - Real-time test execution with detailed reporting
-  - Document management capabilities
-
-### Configuration Files
-```
-appsettings.json:
-├── LLM Configuration          # OpenAI/LLM settings
-├── UITestConfiguration        # Selenium WebDriver settings  
-├── APITestConfiguration       # HTTP client settings
-└── Logging Configuration      # Application logging
+├── Documents/                   # 🆕 Document Management
+│   ├── IDocumentManager.cs     # Upload, process, manage user stories
+│   ├── DocumentManager.cs      # File handling, metadata extraction
+│   └── UserStoryDocument.cs    # Document model with context
+│
+├── TestGeneration/             # 🆕 Dynamic AI Test Generation
+│   ├── DynamicTestGenerator.cs # Replaces hardcoded scenarios
+│   ├── UserStoryAnalysis.cs    # NLP: URLs, credentials, actions, keywords
+│   └── TestStepGenerator.cs    # Smart step generation based on analysis
+│
+├── Executors/                  # Test Execution Engines
+│   ├── UITestExecutor.cs       # Selenium: 15+ UI actions, cross-browser
+│   └── APITestExecutor.cs      # HTTP: REST API testing, JSON validation
+│
+└── LLM/                        # AI Integration
+    ├── OpenAILLMService.cs     # OpenAI GPT integration
+    └── LLMConfiguration.cs     # AI service configuration
 ```
 
-## 🚀 Execution Flow
+### 🖥️ Application Layer
+```
+├── Console/
+│   └── Program.cs              # Interactive CLI with 3 input modes:
+│                               # 1. File upload
+│                               # 2. Manual text input  
+│                               # 3. Select from available files
+│
+└── WebAPI/
+    └── Program.cs              # REST API with Swagger documentation
+```
+
+### 📄 User Story Files (`docs/user-stories/`)
+```
+├── confessions_portal_auth.txt  # 🎯 Your main test case
+├── ecommerce_checkout.txt       # 📦 E-commerce example
+├── user_registration.txt        # 👤 Registration flow example
+└── api_testing.txt              # 🔌 API testing example
+```
+
+## 🚀 Dynamic Test Generation Flow
 
 ```
-1. User Input
-   ├── Text: "Test auth with admin@confess.com at https://portal.com"
-   ├── File: Upload user story document
-   └── Interactive: Console prompts for input
+1. Input Sources:
+   ├── 📁 File Upload: docs/user-stories/*.txt
+   ├── ✏️ Manual Input: Direct text entry
+   └── 📋 File Selection: Auto-discovered files
 
-2. Document Processing
-   ├── DocumentManager creates UserStoryDocument
-   ├── Extracts project context automatically
-   └── Stores document with metadata
+2. Document Processing:
+   ├── DocumentManager: File/text → UserStoryDocument
+   ├── Metadata Extraction: Project context, keywords
+   └── Content Analysis: URLs, credentials, actions
 
-3. Dynamic Analysis
-   ├── DynamicTestGenerator analyzes content
-   ├── Extracts: URLs, credentials, actions, keywords
-   ├── Determines: Test type, priority, flow type
-   └── Generates: Test steps, preconditions, outcomes
+3. AI Test Generation:
+   ├── DynamicTestGenerator: Analyzes user story content
+   ├── NLP Analysis: Extracts test-relevant information
+   ├── Smart Generation: Creates appropriate test steps
+   └── Validation: Ensures test quality and completeness
 
-4. Test Execution
-   ├── UITestExecutor launches browser
-   ├── Executes generated steps sequentially
-   ├── Captures screenshots on failures
-   └── Returns detailed results
+4. Test Execution:
+   ├── UITestExecutor: Real browser automation (Selenium)
+   ├── Cross-browser: Chrome, Firefox, Edge support
+   ├── Screenshots: Failure capture and debugging
+   └── Detailed Results: Step-by-step execution reports
 
-5. Reporting
-   ├── Step-by-step execution results
-   ├── Success/failure analysis
-   ├── Performance metrics
-   └── Failure diagnostics
+5. Reporting:
+   ├── Real-time Progress: Console output during execution
+   ├── Detailed Results: Success/failure analysis
+   ├── Performance Metrics: Timing and resource usage
+   └── Error Analysis: Failure diagnosis and recommendations
 ```
 
 ## 🛠️ Technology Stack
 
-- **Framework**: .NET 8.0
-- **UI Testing**: Selenium WebDriver 4.15
-- **API Testing**: HttpClient with JSON support
-- **Web API**: ASP.NET Core Minimal APIs
-- **Logging**: Microsoft.Extensions.Logging
-- **Configuration**: appsettings.json with environment overrides
-- **Testing**: xUnit with FluentAssertions and Moq
-- **Documentation**: Swagger/OpenAPI integration
+### Backend Framework
+- **.NET 8.0** - Latest LTS version
+- **C# 12** - Latest language features
+- **Minimal APIs** - Modern web API development
 
-## 📦 NuGet Packages
+### Test Automation
+- **Selenium WebDriver 4.15** - UI automation
+- **ChromeDriver/GeckoDriver/EdgeDriver** - Multi-browser support
+- **HttpClient** - API testing
+- **JSON Validation** - API response verification
+
+### AI/LLM Integration
+- **OpenAI GPT-4** - Test generation and analysis
+- **NLP Analysis** - Content parsing and extraction
+- **Dynamic Generation** - No hardcoded scenarios
+
+### Development Tools
+- **xUnit + FluentAssertions** - Testing framework
+- **Swagger/OpenAPI** - API documentation
+- **Microsoft.Extensions.*** - DI, Logging, Configuration
+
+## 📂 File Organization Strategy
+
+### Source Code
+```
+src/
+├── Core/          # Domain models, interfaces (no dependencies)
+├── Services/      # Business logic, implementations
+├── WebAPI/        # HTTP endpoints, controllers
+└── Console/       # CLI application, demos
+```
+
+### User Stories
+```
+docs/user-stories/
+├── *.txt         # Plain text user stories
+└── *.md          # Markdown formatted stories
+```
+
+### Generated Content
+```
+screenshots/      # Test execution screenshots
+logs/            # Application and test logs
+bin/obj/         # Build artifacts (gitignored)
+```
+
+## 🎯 Next Steps
+
+1. **Create Directory**:
+   ```bash
+   mkdir -p docs/user-stories
+   ```
+
+2. **Add Your File**:
+   ```bash
+   # Place confessions_portal_auth.txt in docs/user-stories/
+   ```
+
+3. **Run Application**:
+   ```bash
+   cd src/GenericTestingFramework.Console
+   dotnet run
+   ```
+
+4. **Select Option 3**: Choose from available files
+5. **Select Your File**: Pick confessions_portal_auth.txt
+6. **Execute Test**: Watch dynamic generation and execution
+
+The framework is now fully dynamic with no hardcoded test scenarios!
+
+## 🛠️ Technology Stack
+
+### Backend Framework
+- **.NET 8.0** - Latest LTS version with improved performance
+- **C# 12** - Latest language features including raw string literals
+- **ASP.NET Core Minimal APIs** - Modern, lightweight web API development
+- **Microsoft.Extensions.*** - Dependency injection, logging, configuration
+
+### Test Automation
+- **Selenium WebDriver 4.15** - Cross-browser UI automation
+- **ChromeDriver 119.0.6045.10500** - Chrome browser automation
+- **GeckoDriver 0.33.0** - Firefox browser automation  
+- **MSEdgeDriver 119.0.2151.58** - Edge browser automation
+- **Selenium.Support 4.15.0** - WebDriver support utilities
+- **DotNetSeleniumExtras.WaitHelpers 3.11.0** - Enhanced wait conditions
+- **HttpClient** - RESTful API testing with JSON support
+
+### AI/LLM Integration
+- **OpenAI GPT-4** - Dynamic test generation and analysis
+- **System.Text.Json 8.0.0** - High-performance JSON serialization
+- **NLP Analysis** - Content parsing for URLs, credentials, actions
+- **Dynamic Generation** - Zero hardcoded test scenarios
+
+### Development & Testing
+- **xUnit 2.4.2** - Unit testing framework
+- **FluentAssertions 6.12.0** - Expressive assertion library
+- **Moq 4.20.69** - Mocking framework for unit tests
+- **Microsoft.AspNetCore.Mvc.Testing 8.0.0** - Integration testing
+- **Microsoft.NET.Test.Sdk 17.8.0** - Test platform
+- **Coverlet.Collector 6.0.0** - Code coverage analysis
+
+### Configuration & Logging
+- **Microsoft.Extensions.Logging 8.0.0** - Structured logging
+- **Microsoft.Extensions.Configuration 8.0.0** - Configuration management
+- **appsettings.json** - Environment-specific configuration
+- **Microsoft.Extensions.Hosting 8.0.0** - Application hosting
+
+### Documentation & API
+- **Swashbuckle.AspNetCore 6.5.0** - Swagger/OpenAPI integration
+- **Microsoft.AspNetCore.OpenApi 8.0.0** - OpenAPI specification
+- **Interactive Swagger UI** - API documentation and testing
+
+## 📦 NuGet Package Dependencies
 
 ### Core Dependencies
-- Microsoft.Extensions.* (8.0.0) - DI, Logging, Configuration
-- System.Text.Json (8.0.0) - JSON serialization
-- System.ComponentModel.Annotations (5.0.0) - Model validation
+```xml
+<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+<PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
+<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+<PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
+<PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+<PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+<PackageReference Include="System.Text.Json" Version="8.0.0" />
+<PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
+```
 
-### Selenium WebDriver
-- Selenium.WebDriver (4.15.0)
-- Selenium.WebDriver.ChromeDriver (119.0.6045.10500)
-- Selenium.WebDriver.GeckoDriver (0.33.0)
-- Selenium.WebDriver.MSEdgeDriver (119.0.2151.58)
-- Selenium.Support (4.15.0)
-- DotNetSeleniumExtras.WaitHelpers (3.11.0)
+### Selenium WebDriver Stack
+```xml
+<PackageReference Include="Selenium.WebDriver" Version="4.15.0" />
+<PackageReference Include="Selenium.WebDriver.ChromeDriver" Version="119.0.6045.10500" />
+<PackageReference Include="Selenium.WebDriver.GeckoDriver" Version="0.33.0" />
+<PackageReference Include="Selenium.WebDriver.MSEdgeDriver" Version="119.0.2151.58" />
+<PackageReference Include="Selenium.Support" Version="4.15.0" />
+<PackageReference Include="DotNetSeleniumExtras.WaitHelpers" Version="3.11.0" />
+```
 
-### Testing
-- Microsoft.NET.Test.Sdk (17.8.0)
-- xunit (2.4.2)
-- FluentAssertions (6.12.0)
-- Moq (4.20.69)
-- Microsoft.AspNetCore.Mvc.Testing (8.0.0)
+### Web API & Documentation
+```xml
+<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0" />
+<PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+<PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
+<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.0" />
+```
 
-This structure provides a clean separation of concerns with dynamic test generation capabilities, making it easy to extend and maintain.
+### Testing Framework
+```xml
+<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+<PackageReference Include="xunit" Version="2.4.2" />
+<PackageReference Include="xunit.runner.visualstudio" Version="2.4.5" />
+<PackageReference Include="FluentAssertions" Version="6.12.0" />
+<PackageReference Include="Moq" Version="4.20.69" />
+<PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.0" />
+<PackageReference Include="coverlet.collector" Version="6.0.0" />
+```
+
+## 🏗️ Architecture Benefits
+
+### Clean Separation of Concerns
+- **Core Layer**: Domain models and interfaces (no dependencies)
+- **Services Layer**: Business logic with dynamic test generation
+- **Application Layer**: User interfaces (Console, Web API)
+- **Test Layer**: Comprehensive testing coverage
+
+### Dynamic Test Generation
+- **Zero Hardcoding**: All tests generated from user stories
+- **NLP Analysis**: Smart extraction of test-relevant information
+- **Flexible Input**: File upload, manual entry, or file selection
+- **Context Awareness**: Understands authentication flows, form fields
+
+### Production Ready
+- **Error Handling**: Comprehensive exception management
+- **Logging**: Structured logging with multiple providers
+- **Configuration**: Environment-specific settings
+- **Health Checks**: Executor status monitoring
+- **Performance**: Optimized for concurrent execution
+
+This structure provides a clean separation of concerns with dynamic test generation capabilities, making it easy to extend and maintain while supporting enterprise-grade testing requirements.

@@ -1,18 +1,8 @@
+using GenericTestingFramework.Services.Documents.Models;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
 namespace GenericTestingFramework.Services.Documents;
-
-/// <summary>
-/// Manages user story documents and extracts test scenarios
-/// </summary>
-public interface IDocumentManager
-{
-    Task<UserStoryDocument> UploadUserStory(string filePath, CancellationToken cancellationToken = default);
-    Task<UserStoryDocument> CreateUserStoryFromText(string userStoryText, string projectContext = "", CancellationToken cancellationToken = default);
-    Task<List<UserStoryDocument>> GetUserStories(string projectId, CancellationToken cancellationToken = default);
-    Task<bool> DeleteUserStory(string documentId, CancellationToken cancellationToken = default);
-}
 
 /// <summary>
 /// Implementation of document manager for user stories
@@ -109,18 +99,4 @@ public class DocumentManager : IDocumentManager
 
         return "General web application";
     }
-}
-
-/// <summary>
-/// Represents a user story document
-/// </summary>
-public class UserStoryDocument
-{
-    public string Id { get; set; } = string.Empty;
-    public string FileName { get; set; } = string.Empty;
-    public string Content { get; set; } = string.Empty;
-    public string? FilePath { get; set; }
-    public DateTime UploadedAt { get; set; }
-    public string ProjectContext { get; set; } = string.Empty;
-    public Dictionary<string, object> Metadata { get; set; } = new();
 }
