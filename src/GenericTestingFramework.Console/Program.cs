@@ -24,9 +24,9 @@ try
 
     // Setup DI container
     var services = new ServiceCollection();
-    
+
     // Add logging
-    services.AddLogging(builder => 
+    services.AddLogging(builder =>
     {
         builder.AddConsole();
         builder.SetMinimumLevel(LogLevel.Information);
@@ -72,50 +72,90 @@ try
 
     logger.LogInformation("Starting Dynamic Test Generation Framework");
 
-    // Demo: Create user story from text input
-    Console.WriteLine("\n📝 Dynamic Test Generation Demo");
-    Console.WriteLine("===============================");
+    // Check for available user story files
+    var userStoryFiles = GetAvailableUserStoryFiles();
 
-    // Option 1: Interactive user story input
-    Console.WriteLine("\nEnter your user story (or press Enter for demo story):");
-    var userInput = Console.ReadLine();
+    Console.WriteLine("\n📝 Dynamic Test Generation Options");
+    Console.WriteLine("==================================");
 
-    string userStory;
-    string projectContext;
+    // Show available options
+    Console.WriteLine("\nChoose an option:");
+    Console.WriteLine("1. Upload a user story file");
+    Console.WriteLine("2. Enter user story text manually");
 
-    if (string.IsNullOrWhiteSpace(userInput))
+    if (userStoryFiles.Any())
     {
-        // Default demo story for Confessions Portal
-        userStory = @"Test Authentication with credentials admin@confess.com, Admin@123 
-                     for Confessions tracking Admin Portal at https://maidencube.com/cube-admin-prod/";
-        projectContext = "Confessions tracking Admin Portal - Authentication and access control system";
-        Console.WriteLine("Using demo story: Confessions Portal Authentication Test");
-    }
-    else
-    {
-        userStory = userInput;
-        Console.WriteLine("\nEnter project context (optional):");
-        projectContext = Console.ReadLine() ?? "";
+        Console.WriteLine("3. Select from available user story files:");
+        for (int i = 0; i < userStoryFiles.Count; i++)
+        {
+            Console.WriteLine($"   {i + 1}. {Path.GetFileName(userStoryFiles[i])}");
+        }
     }
 
-    // Create document from user story
-    Console.WriteLine("\n📄 Creating document from user story...");
-    var document = await documentManager.CreateUserStoryFromText(userStory, projectContext);
-    Console.WriteLine($"✅ Created document: {document.FileName}");
-    Console.WriteLine($"   Content length: {document.Content.Length} characters");
-    Console.WriteLine($"   Project context: {document.ProjectContext}");
+    Console.WriteLine("\nEnter your choice (1, 2, or 3):");
+    var choice = Console.ReadLine()?.Trim();
+
+    UserStoryDocument? document = null;
+    string projectId = "dynamic-testing";
+
+    switch (choice)
+    {
+        case "1":
+            document = await HandleFileUpload(documentManager);
+            break;
+
+        case "2":
+            document = await HandleManualInput(documentManager);
+            break;
+
+        case "3":
+            if (userStoryFiles.Any())
+            {
+                document = await HandleFileSelection(documentManager, userStoryFiles);
+            }
+            else
+            {
+                Console.WriteLine("❌ No user story files available.");
+                return;
+            }
+            break;
+
+        default:
+            Console.WriteLine("❌ Invalid choice. Exiting...");
+            return;
+    }
+
+    if (document == null)
+    {
+        Console.WriteLine("❌ No user story provided. Exiting...");
+        return;
+    }
+
+    // Display document information
+    Console.WriteLine($"\n📄 Processing User Story Document:");
+    Console.WriteLine($"   File: {document.FileName}");
+    Console.WriteLine($"   Content Length: {document.Content.Length} characters");
+    Console.WriteLine($"   Project Context: {document.ProjectContext}");
+    Console.WriteLine($"   Uploaded: {document.UploadedAt:yyyy-MM-dd HH:mm:ss}");
+
+    // Show content preview
+    var preview = document.Content.Length > 200 ?
+        document.Content.Substring(0, 200) + "..." :
+        document.Content;
+    Console.WriteLine($"\n📋 Content Preview:");
+    Console.WriteLine($"   {preview}");
 
     // Generate test scenario dynamically
     Console.WriteLine("\n🔄 Generating test scenario dynamically...");
     var scenarioId = await testService.CreateTestFromUserStory(
-        userStory, 
-        "dynamic-testing",
-        projectContext);
+        document.Content,
+        projectId,
+        document.ProjectContext);
 
     Console.WriteLine($"✅ Generated test scenario: {scenarioId}");
 
     // Get the generated scenario details
-    var projectTests = await testService.GetProjectTests("dynamic-testing");
+    var projectTests = await testService.GetProjectTests(projectId);
     var generatedScenario = projectTests.FirstOrDefault();
 
     if (generatedScenario != null)
@@ -130,15 +170,18 @@ try
         Console.WriteLine($"\n📋 Generated Test Steps:");
         foreach (var step in generatedScenario.Steps.OrderBy(s => s.Order))
         {
-            Console.WriteLine($"   {step.Order}. {step.Action} - {step.Description}");
+            Console.WriteLine($"   {step.Order}. {step.Action.ToUpper()} - {step.Description}");
             Console.WriteLine($"      Target: {step.Target}");
+            Console.WriteLine($"      Expected: {step.ExpectedResult}");
             if (step.Parameters.Any())
             {
-                Console.WriteLine($"      Parameters: {string.Join(", ", step.Parameters.Select(p => $"{p.Key}={p.Value}"))}");
+                var paramStr = string.Join(", ", step.Parameters.Select(p => $"{p.Key}={p.Value}"));
+                Console.WriteLine($"      Parameters: {paramStr}");
             }
+            Console.WriteLine();
         }
 
-        Console.WriteLine($"\n📋 Preconditions:");
+        Console.WriteLine($"📋 Preconditions:");
         foreach (var precondition in generatedScenario.Preconditions)
         {
             Console.WriteLine($"   • {precondition}");
@@ -149,90 +192,71 @@ try
         {
             Console.WriteLine($"   • {outcome}");
         }
-    }
 
-    // Ask user if they want to execute the test
-    Console.WriteLine("\n🚀 Execute the generated test? (y/n):");
-    var executeChoice = Console.ReadLine()?.ToLowerInvariant();
+        // Ask user if they want to execute the test
+        Console.WriteLine("\n🚀 Execute the generated test? (y/n):");
+        var executeChoice = Console.ReadLine()?.ToLowerInvariant();
 
-    if (executeChoice == "y" || executeChoice == "yes")
-    {
-        Console.WriteLine("\n🔄 Executing dynamically generated test...");
-        
-        var result = await testService.ExecuteTest(scenarioId);
-        Console.WriteLine($"\n✅ Test Execution Result: {(result.Passed ? "PASSED" : "FAILED")}");
-        Console.WriteLine($"   Duration: {result.Duration}");
-        Console.WriteLine($"   Steps executed: {result.StepResults.Count}");
-        Console.WriteLine($"   Success rate: {result.GetSuccessRate():F1}%");
-
-        if (!result.Passed)
+        if (executeChoice == "y" || executeChoice == "yes")
         {
-            Console.WriteLine($"\n❌ Test Failed: {result.Message}");
-            var firstFailure = result.GetFirstFailure();
-            if (firstFailure != null)
+            Console.WriteLine("\n🔄 Executing dynamically generated test...");
+            Console.WriteLine("   (Browser will open if headless mode is disabled)");
+
+            var result = await testService.ExecuteTest(scenarioId);
+            Console.WriteLine($"\n✅ Test Execution Result: {(result.Passed ? "PASSED" : "FAILED")}");
+            Console.WriteLine($"   Duration: {result.Duration}");
+            Console.WriteLine($"   Steps executed: {result.StepResults.Count}");
+            Console.WriteLine($"   Success rate: {result.GetSuccessRate():F1}%");
+
+            if (!result.Passed)
             {
-                Console.WriteLine($"   First Failed Step: {firstFailure.StepName}");
-                Console.WriteLine($"   Error: {firstFailure.Message}");
+                Console.WriteLine($"\n❌ Test Failed: {result.Message}");
+                var firstFailure = result.GetFirstFailure();
+                if (firstFailure != null)
+                {
+                    Console.WriteLine($"   First Failed Step: {firstFailure.StepName}");
+                    Console.WriteLine($"   Error: {firstFailure.Message}");
+                }
+            }
+
+            // Show detailed step results
+            Console.WriteLine("\n📋 Detailed Step Results:");
+            foreach (var stepResult in result.StepResults)
+            {
+                var status = stepResult.Passed ? "✅ PASS" : "❌ FAIL";
+                Console.WriteLine($"   {status} - {stepResult.StepName}");
+                Console.WriteLine($"          Action: {stepResult.Action} on {stepResult.Target}");
+                Console.WriteLine($"          Duration: {stepResult.Duration.TotalMilliseconds:F0}ms");
+                if (!stepResult.Passed)
+                {
+                    Console.WriteLine($"          Error: {stepResult.Message}");
+                }
+                if (!string.IsNullOrEmpty(stepResult.ScreenshotPath))
+                {
+                    Console.WriteLine($"          Screenshot: {stepResult.ScreenshotPath}");
+                }
+                Console.WriteLine();
             }
         }
-
-        // Show detailed step results
-        Console.WriteLine("\n📋 Detailed Step Results:");
-        foreach (var stepResult in result.StepResults)
-        {
-            var status = stepResult.Passed ? "✅ PASS" : "❌ FAIL";
-            Console.WriteLine($"   {status} - {stepResult.StepName}");
-            Console.WriteLine($"          Action: {stepResult.Action} on {stepResult.Target}");
-            Console.WriteLine($"          Duration: {stepResult.Duration.TotalMilliseconds:F0}ms");
-            if (!stepResult.Passed)
-            {
-                Console.WriteLine($"          Error: {stepResult.Message}");
-            }
-        }
     }
 
-    // Show document management capabilities
-    Console.WriteLine("\n📚 Document Management:");
+    // Show document management summary
+    Console.WriteLine("\n📚 Document Management Summary:");
     var allDocuments = await documentManager.GetUserStories("");
     Console.WriteLine($"   Total user story documents: {allDocuments.Count}");
-    
-    foreach (var doc in allDocuments)
+
+    foreach (var doc in allDocuments.Take(5)) // Show last 5 documents
     {
         Console.WriteLine($"   • {doc.FileName} (uploaded: {doc.UploadedAt:yyyy-MM-dd HH:mm})");
         Console.WriteLine($"     Context: {doc.ProjectContext}");
-    }
-
-    // Option to upload a file
-    Console.WriteLine("\n📁 Upload a user story file? (Enter file path or press Enter to skip):");
-    var filePath = Console.ReadLine();
-    
-    if (!string.IsNullOrWhiteSpace(filePath) && File.Exists(filePath))
-    {
-        try
-        {
-            var uploadedDoc = await documentManager.UploadUserStory(filePath);
-            Console.WriteLine($"✅ Uploaded file: {uploadedDoc.FileName}");
-            
-            // Generate test from uploaded file
-            var fileScenarioId = await testService.CreateTestFromUserStory(
-                uploadedDoc.Content,
-                "uploaded-tests",
-                uploadedDoc.ProjectContext);
-            
-            Console.WriteLine($"✅ Generated test from uploaded file: {fileScenarioId}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"❌ Failed to upload file: {ex.Message}");
-        }
     }
 
     // Get test statistics
     Console.WriteLine("\n📊 Test Execution Statistics:");
     var fromDate = DateTime.UtcNow.AddDays(-1);
     var toDate = DateTime.UtcNow;
-    
-    var stats = await testService.GetTestStatistics("dynamic-testing", fromDate, toDate);
+
+    var stats = await testService.GetTestStatistics(projectId, fromDate, toDate);
     Console.WriteLine($"   Total Scenarios: {stats.TotalScenarios}");
     Console.WriteLine($"   Total Executions: {stats.TotalExecutions}");
     Console.WriteLine($"   Pass Rate: {stats.PassRate:F1}%");
@@ -241,7 +265,7 @@ try
     // Health check
     Console.WriteLine("\n🏥 Executor Health Status:");
     var healthStatus = await testService.GetExecutorHealthStatus();
-    
+
     foreach (var executor in healthStatus)
     {
         var status = executor.Value.IsHealthy ? "✅ Healthy" : "❌ Unhealthy";
@@ -250,15 +274,15 @@ try
 
     Console.WriteLine("\n🎉 Dynamic Test Generation Completed!");
     Console.WriteLine("\n💡 Framework Features Demonstrated:");
+    Console.WriteLine("   ✓ User story file upload and management");
     Console.WriteLine("   ✓ Dynamic test generation from user stories");
-    Console.WriteLine("   ✓ User story document management");
     Console.WriteLine("   ✓ Automatic analysis of user story content");
     Console.WriteLine("   ✓ Smart extraction of URLs, credentials, and actions");
     Console.WriteLine("   ✓ Context-aware test step generation");
-    Console.WriteLine("   ✓ File upload support for user stories");
     Console.WriteLine("   ✓ Real-time test execution with detailed reporting");
+    Console.WriteLine("   ✓ Screenshot capture on test failures");
 
-    logger.LogInformation("Dynamic Test Generation Framework demo completed successfully");
+    logger.LogInformation("Dynamic Test Generation Framework completed successfully");
 }
 catch (Exception ex)
 {
@@ -268,6 +292,148 @@ catch (Exception ex)
 
 Console.WriteLine("\nPress any key to exit...");
 Console.ReadKey();
+
+#region Helper Methods
+
+static List<string> GetAvailableUserStoryFiles()
+{
+    var files = new List<string>();
+    var searchPaths = new[]
+    {
+        "docs",
+        "user-stories",
+        ".",
+        "../../../docs",
+        "../../../../docs"
+    };
+
+    var extensions = new[] { "*.txt", "*.md" };
+
+    foreach (var path in searchPaths)
+    {
+        if (Directory.Exists(path))
+        {
+            foreach (var ext in extensions)
+            {
+                files.AddRange(Directory.GetFiles(path, ext, SearchOption.TopDirectoryOnly));
+            }
+        }
+    }
+
+    return files.Distinct().ToList();
+}
+
+static async Task<UserStoryDocument?> HandleFileUpload(IDocumentManager documentManager)
+{
+    Console.WriteLine("\n📁 Enter the full path to your user story file:");
+    var filePath = Console.ReadLine()?.Trim().Trim('"');
+
+    if (string.IsNullOrWhiteSpace(filePath))
+    {
+        Console.WriteLine("❌ No file path provided.");
+        return null;
+    }
+
+    if (!File.Exists(filePath))
+    {
+        Console.WriteLine($"❌ File not found: {filePath}");
+        return null;
+    }
+
+    try
+    {
+        var document = await documentManager.UploadUserStory(filePath);
+        Console.WriteLine($"✅ Successfully uploaded: {document.FileName}");
+        return document;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ Failed to upload file: {ex.Message}");
+        return null;
+    }
+}
+
+static async Task<UserStoryDocument?> HandleManualInput(IDocumentManager documentManager)
+{
+    Console.WriteLine("\n✏️ Enter your user story (press Enter twice to finish):");
+    var lines = new List<string>();
+    string? line;
+    int emptyLineCount = 0;
+
+    while ((line = Console.ReadLine()) != null)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            emptyLineCount++;
+            if (emptyLineCount >= 2) break;
+        }
+        else
+        {
+            emptyLineCount = 0;
+        }
+        lines.Add(line);
+    }
+
+    var userStory = string.Join(Environment.NewLine, lines).Trim();
+
+    if (string.IsNullOrWhiteSpace(userStory))
+    {
+        Console.WriteLine("❌ No user story provided.");
+        return null;
+    }
+
+    Console.WriteLine("\n📝 Enter project context (optional):");
+    var projectContext = Console.ReadLine()?.Trim() ?? "";
+
+    try
+    {
+        var document = await documentManager.CreateUserStoryFromText(userStory, projectContext);
+        Console.WriteLine($"✅ Successfully created user story document: {document.FileName}");
+        return document;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ Failed to create user story: {ex.Message}");
+        return null;
+    }
+}
+
+static async Task<UserStoryDocument?> HandleFileSelection(IDocumentManager documentManager, List<string> availableFiles)
+{
+    Console.WriteLine($"\n📋 Available user story files:");
+    for (int i = 0; i < availableFiles.Count; i++)
+    {
+        var fileName = Path.GetFileName(availableFiles[i]);
+        var fileInfo = new FileInfo(availableFiles[i]);
+        Console.WriteLine($"   {i + 1}. {fileName} ({fileInfo.Length} bytes, modified: {fileInfo.LastWriteTime:yyyy-MM-dd})");
+    }
+
+    Console.WriteLine($"\nSelect a file (1-{availableFiles.Count}):");
+    var selection = Console.ReadLine()?.Trim();
+
+    if (!int.TryParse(selection, out var fileIndex) || fileIndex < 1 || fileIndex > availableFiles.Count)
+    {
+        Console.WriteLine("❌ Invalid selection.");
+        return null;
+    }
+
+    var selectedFile = availableFiles[fileIndex - 1];
+    Console.WriteLine($"📄 Selected: {Path.GetFileName(selectedFile)}");
+
+    try
+    {
+        var document = await documentManager.UploadUserStory(selectedFile);
+        Console.WriteLine($"✅ Successfully loaded: {document.FileName}");
+        return document;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ Failed to load file: {ex.Message}");
+        return null;
+    }
+}
+
+#endregion
 
 // Configuration classes for Console app
 public class UITestConfiguration
@@ -295,8 +461,8 @@ public class MockAPITestExecutor : ITestExecutor
 {
     public string Name => "Mock API Test Executor";
 
-    public bool CanExecute(GenericTestingFramework.Core.Models.TestType testType) => 
-        testType == GenericTestingFramework.Core.Models.TestType.API || 
+    public bool CanExecute(GenericTestingFramework.Core.Models.TestType testType) =>
+        testType == GenericTestingFramework.Core.Models.TestType.API ||
         testType == GenericTestingFramework.Core.Models.TestType.Mixed;
 
     public async Task<GenericTestingFramework.Core.Models.TestResult> ExecuteTest(
@@ -328,10 +494,10 @@ public class MockAPITestExecutor : ITestExecutor
     {
         return new GenericTestingFramework.Core.Interfaces.ExecutorCapabilities
         {
-            SupportedTestTypes = new List<GenericTestingFramework.Core.Models.TestType> 
-            { 
-                GenericTestingFramework.Core.Models.TestType.API, 
-                GenericTestingFramework.Core.Models.TestType.Mixed 
+            SupportedTestTypes = new List<GenericTestingFramework.Core.Models.TestType>
+            {
+                GenericTestingFramework.Core.Models.TestType.API,
+                GenericTestingFramework.Core.Models.TestType.Mixed
             },
             SupportedActions = new List<string> { "api_get", "api_post", "verify_status", "verify_body" },
             MaxParallelExecutions = 3,
@@ -341,7 +507,7 @@ public class MockAPITestExecutor : ITestExecutor
 
     public Task<GenericTestingFramework.Core.Interfaces.HealthCheckResult> PerformHealthCheck(CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(new GenericTestingFramework.Core.Interfaces.ExecutorHealthCheckResult
+        return Task.FromResult(new GenericTestingFramework.Core.Interfaces.HealthCheckResult
         {
             IsHealthy = true,
             Message = "Mock API executor is healthy",

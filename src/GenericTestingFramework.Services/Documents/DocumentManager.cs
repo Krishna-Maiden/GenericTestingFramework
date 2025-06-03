@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
 namespace GenericTestingFramework.Services.Documents;

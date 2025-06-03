@@ -1,6 +1,7 @@
 using GenericTestingFramework.Core.Interfaces;
 using GenericTestingFramework.Core.Models;
 using GenericTestingFramework.Services.Documents;
+using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
 
 namespace GenericTestingFramework.Services.TestGeneration;
