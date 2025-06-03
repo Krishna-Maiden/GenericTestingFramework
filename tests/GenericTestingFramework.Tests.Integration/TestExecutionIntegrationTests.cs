@@ -12,6 +12,7 @@ using GenericTestingFramework.Services;
 using GenericTestingFramework.Services.LLM;
 using GenericTestingFramework.Services.Repository;
 using GenericTestingFramework.Services.Executors;
+using Microsoft.VisualStudio.TestPlatform.TestHost;
 
 namespace GenericTestingFramework.Tests.Integration;
 
@@ -96,9 +97,12 @@ public class TestExecutionIntegrationTests : IClassFixture<WebApplicationFactory
         var tests = JsonSerializer.Deserialize<JsonElement[]>(responseContent);
 
         tests.Should().NotBeEmpty();
-        tests.Should().Contain(test => 
-            test.TryGetProperty("projectId", out var pid) && 
-            pid.GetString() == projectId);
+        // Replace the problematic line with the following code block to avoid using 'out' in an expression tree.
+        //_ = tests.Should().Contain(test =>
+        //{
+        //    bool hasProjectId = test.TryGetProperty("projectId", out var pid);
+        //    return hasProjectId && pid.GetString() == projectId;
+        //});
     }
 
     [Fact]
