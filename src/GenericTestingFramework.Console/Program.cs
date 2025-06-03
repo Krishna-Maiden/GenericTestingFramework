@@ -7,9 +7,11 @@ using GenericTestingFramework.Services;
 using GenericTestingFramework.Services.LLM;
 using GenericTestingFramework.Services.Repository;
 using GenericTestingFramework.Services.Executors;
+using GenericTestingFramework.Services.Documents;
+using GenericTestingFramework.Services.TestGeneration;
 
-Console.WriteLine("🚀 AI-Powered Generic Testing Framework - Console Application");
-Console.WriteLine("==============================================================");
+Console.WriteLine("🚀 Dynamic Test Generation Framework - Console Application");
+Console.WriteLine("========================================================");
 
 try
 {
@@ -49,92 +51,195 @@ try
     services.AddHttpClient<OpenAILLMService>();
     services.AddHttpClient<APITestExecutor>();
 
-    // Register framework services
-    services.AddSingleton<ILLMService, MockLLMService>(); // Use mock for demo
+    // Register document manager
+    services.AddSingleton<IDocumentManager, DocumentManager>();
+
+    // Register framework services with dynamic test generator
+    services.AddSingleton<ILLMService, DynamicTestGenerator>();
     services.AddSingleton<ITestRepository, InMemoryTestRepository>();
 
     // Register test executors
-    services.AddTransient<ITestExecutor, MockUITestExecutor>(); // Use mock for demo
-    services.AddTransient<ITestExecutor, MockAPITestExecutor>(); // Use mock for demo
+    services.AddTransient<ITestExecutor, UITestExecutor>();
+    services.AddTransient<ITestExecutor, MockAPITestExecutor>();
 
     // Register main service
     services.AddTransient<TestAutomationService>();
 
     var serviceProvider = services.BuildServiceProvider();
     var testService = serviceProvider.GetRequiredService<TestAutomationService>();
+    var documentManager = serviceProvider.GetRequiredService<IDocumentManager>();
     var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
 
-    logger.LogInformation("Starting AI Testing Framework Console Demo");
+    logger.LogInformation("Starting Dynamic Test Generation Framework");
 
-    // Demo 1: Create test from insurance user story
-    Console.WriteLine("\n📝 Demo 1: Creating test from Insurance user story...");
-    var insuranceUserStory = @"
-        As a SafeGuard Insurance customer, 
-        I want to get an auto insurance quote online 
-        so that I can compare rates and coverage options for my vehicle.
-    ";
+    // Demo: Create user story from text input
+    Console.WriteLine("\n📝 Dynamic Test Generation Demo");
+    Console.WriteLine("===============================");
 
-    var scenarioId1 = await testService.CreateTestFromUserStory(
-        insuranceUserStory, 
-        "safeguard-insurance",
-        "SafeGuard Insurance Platform - Auto insurance quoting system with VIN validation and premium calculation");
+    // Option 1: Interactive user story input
+    Console.WriteLine("\nEnter your user story (or press Enter for demo story):");
+    var userInput = Console.ReadLine();
 
-    Console.WriteLine($"✅ Created insurance test scenario: {scenarioId1}");
+    string userStory;
+    string projectContext;
 
-    // Demo 2: Create test from another user story
-    Console.WriteLine("\n📝 Demo 2: Creating test from Customer Portal user story...");
-    var portalUserStory = @"
-        As a registered customer,
-        I want to securely log into my account
-        so that I can access my policy information and perform account activities.
-    ";
-
-    var scenarioId2 = await testService.CreateTestFromUserStory(
-        portalUserStory, 
-        "safeguard-insurance",
-        "Customer portal with multi-factor authentication and session management");
-
-    Console.WriteLine($"✅ Created portal test scenario: {scenarioId2}");
-
-    // Demo 3: Get project tests
-    Console.WriteLine("\n📋 Demo 3: Retrieving project test scenarios...");
-    var projectTests = await testService.GetProjectTests("safeguard-insurance");
-    
-    Console.WriteLine($"✅ Found {projectTests.Count} test scenarios for SafeGuard Insurance:");
-    foreach (var test in projectTests)
+    if (string.IsNullOrWhiteSpace(userInput))
     {
-        Console.WriteLine($"   - {test.Title} ({test.Type}, {test.Steps.Count} steps)");
+        // Default demo story for Confessions Portal
+        userStory = @"Test Authentication with credentials admin@confess.com, Admin@123 
+                     for Confessions tracking Admin Portal at https://maidencube.com/cube-admin-prod/";
+        projectContext = "Confessions tracking Admin Portal - Authentication and access control system";
+        Console.WriteLine("Using demo story: Confessions Portal Authentication Test");
+    }
+    else
+    {
+        userStory = userInput;
+        Console.WriteLine("\nEnter project context (optional):");
+        projectContext = Console.ReadLine() ?? "";
     }
 
-    // Demo 4: Execute tests
-    Console.WriteLine("\n🔄 Demo 4: Executing test scenarios...");
+    // Create document from user story
+    Console.WriteLine("\n📄 Creating document from user story...");
+    var document = await documentManager.CreateUserStoryFromText(userStory, projectContext);
+    Console.WriteLine($"✅ Created document: {document.FileName}");
+    Console.WriteLine($"   Content length: {document.Content.Length} characters");
+    Console.WriteLine($"   Project context: {document.ProjectContext}");
+
+    // Generate test scenario dynamically
+    Console.WriteLine("\n🔄 Generating test scenario dynamically...");
+    var scenarioId = await testService.CreateTestFromUserStory(
+        userStory, 
+        "dynamic-testing",
+        projectContext);
+
+    Console.WriteLine($"✅ Generated test scenario: {scenarioId}");
+
+    // Get the generated scenario details
+    var projectTests = await testService.GetProjectTests("dynamic-testing");
+    var generatedScenario = projectTests.FirstOrDefault();
+
+    if (generatedScenario != null)
+    {
+        Console.WriteLine($"\n📋 Generated Test Scenario Details:");
+        Console.WriteLine($"   Title: {generatedScenario.Title}");
+        Console.WriteLine($"   Type: {generatedScenario.Type}");
+        Console.WriteLine($"   Priority: {generatedScenario.Priority}");
+        Console.WriteLine($"   Steps: {generatedScenario.Steps.Count}");
+        Console.WriteLine($"   Tags: {string.Join(", ", generatedScenario.Tags)}");
+
+        Console.WriteLine($"\n📋 Generated Test Steps:");
+        foreach (var step in generatedScenario.Steps.OrderBy(s => s.Order))
+        {
+            Console.WriteLine($"   {step.Order}. {step.Action} - {step.Description}");
+            Console.WriteLine($"      Target: {step.Target}");
+            if (step.Parameters.Any())
+            {
+                Console.WriteLine($"      Parameters: {string.Join(", ", step.Parameters.Select(p => $"{p.Key}={p.Value}"))}");
+            }
+        }
+
+        Console.WriteLine($"\n📋 Preconditions:");
+        foreach (var precondition in generatedScenario.Preconditions)
+        {
+            Console.WriteLine($"   • {precondition}");
+        }
+
+        Console.WriteLine($"\n📋 Expected Outcomes:");
+        foreach (var outcome in generatedScenario.ExpectedOutcomes)
+        {
+            Console.WriteLine($"   • {outcome}");
+        }
+    }
+
+    // Ask user if they want to execute the test
+    Console.WriteLine("\n🚀 Execute the generated test? (y/n):");
+    var executeChoice = Console.ReadLine()?.ToLowerInvariant();
+
+    if (executeChoice == "y" || executeChoice == "yes")
+    {
+        Console.WriteLine("\n🔄 Executing dynamically generated test...");
+        
+        var result = await testService.ExecuteTest(scenarioId);
+        Console.WriteLine($"\n✅ Test Execution Result: {(result.Passed ? "PASSED" : "FAILED")}");
+        Console.WriteLine($"   Duration: {result.Duration}");
+        Console.WriteLine($"   Steps executed: {result.StepResults.Count}");
+        Console.WriteLine($"   Success rate: {result.GetSuccessRate():F1}%");
+
+        if (!result.Passed)
+        {
+            Console.WriteLine($"\n❌ Test Failed: {result.Message}");
+            var firstFailure = result.GetFirstFailure();
+            if (firstFailure != null)
+            {
+                Console.WriteLine($"   First Failed Step: {firstFailure.StepName}");
+                Console.WriteLine($"   Error: {firstFailure.Message}");
+            }
+        }
+
+        // Show detailed step results
+        Console.WriteLine("\n📋 Detailed Step Results:");
+        foreach (var stepResult in result.StepResults)
+        {
+            var status = stepResult.Passed ? "✅ PASS" : "❌ FAIL";
+            Console.WriteLine($"   {status} - {stepResult.StepName}");
+            Console.WriteLine($"          Action: {stepResult.Action} on {stepResult.Target}");
+            Console.WriteLine($"          Duration: {stepResult.Duration.TotalMilliseconds:F0}ms");
+            if (!stepResult.Passed)
+            {
+                Console.WriteLine($"          Error: {stepResult.Message}");
+            }
+        }
+    }
+
+    // Show document management capabilities
+    Console.WriteLine("\n📚 Document Management:");
+    var allDocuments = await documentManager.GetUserStories("");
+    Console.WriteLine($"   Total user story documents: {allDocuments.Count}");
     
-    var result1 = await testService.ExecuteTest(scenarioId1);
-    Console.WriteLine($"✅ Insurance Quote Test: {(result1.Passed ? "PASSED" : "FAILED")}");
-    Console.WriteLine($"   Duration: {result1.Duration}");
-    Console.WriteLine($"   Steps executed: {result1.StepResults.Count}");
-    Console.WriteLine($"   Success rate: {result1.GetSuccessRate():F1}%");
+    foreach (var doc in allDocuments)
+    {
+        Console.WriteLine($"   • {doc.FileName} (uploaded: {doc.UploadedAt:yyyy-MM-dd HH:mm})");
+        Console.WriteLine($"     Context: {doc.ProjectContext}");
+    }
 
-    var result2 = await testService.ExecuteTest(scenarioId2);
-    Console.WriteLine($"✅ Customer Login Test: {(result2.Passed ? "PASSED" : "FAILED")}");
-    Console.WriteLine($"   Duration: {result2.Duration}");
-    Console.WriteLine($"   Steps executed: {result2.StepResults.Count}");
-    Console.WriteLine($"   Success rate: {result2.GetSuccessRate():F1}%");
+    // Option to upload a file
+    Console.WriteLine("\n📁 Upload a user story file? (Enter file path or press Enter to skip):");
+    var filePath = Console.ReadLine();
+    
+    if (!string.IsNullOrWhiteSpace(filePath) && File.Exists(filePath))
+    {
+        try
+        {
+            var uploadedDoc = await documentManager.UploadUserStory(filePath);
+            Console.WriteLine($"✅ Uploaded file: {uploadedDoc.FileName}");
+            
+            // Generate test from uploaded file
+            var fileScenarioId = await testService.CreateTestFromUserStory(
+                uploadedDoc.Content,
+                "uploaded-tests",
+                uploadedDoc.ProjectContext);
+            
+            Console.WriteLine($"✅ Generated test from uploaded file: {fileScenarioId}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Failed to upload file: {ex.Message}");
+        }
+    }
 
-    // Demo 5: Get test statistics
-    Console.WriteLine("\n📊 Demo 5: Getting test execution statistics...");
-    var fromDate = DateTime.UtcNow.AddDays(-30);
+    // Get test statistics
+    Console.WriteLine("\n📊 Test Execution Statistics:");
+    var fromDate = DateTime.UtcNow.AddDays(-1);
     var toDate = DateTime.UtcNow;
     
-    var stats = await testService.GetTestStatistics("safeguard-insurance", fromDate, toDate);
-    Console.WriteLine($"✅ Test Statistics (Last 30 days):");
+    var stats = await testService.GetTestStatistics("dynamic-testing", fromDate, toDate);
     Console.WriteLine($"   Total Scenarios: {stats.TotalScenarios}");
     Console.WriteLine($"   Total Executions: {stats.TotalExecutions}");
     Console.WriteLine($"   Pass Rate: {stats.PassRate:F1}%");
     Console.WriteLine($"   Average Duration: {stats.AverageDuration}");
 
-    // Demo 6: Health check
-    Console.WriteLine("\n🏥 Demo 6: Checking executor health status...");
+    // Health check
+    Console.WriteLine("\n🏥 Executor Health Status:");
     var healthStatus = await testService.GetExecutorHealthStatus();
     
     foreach (var executor in healthStatus)
@@ -143,41 +248,17 @@ try
         Console.WriteLine($"   {executor.Key}: {status} ({executor.Value.ResponseTime.TotalMilliseconds:F0}ms)");
     }
 
-    // Demo 7: Interactive mode
-    Console.WriteLine("\n🎯 Demo 7: Interactive Test Creation");
-    Console.WriteLine("Enter your own user story (or press Enter to skip):");
-    
-    var userInput = Console.ReadLine();
-    if (!string.IsNullOrWhiteSpace(userInput))
-    {
-        try
-        {
-            var customScenarioId = await testService.CreateTestFromUserStory(
-                userInput, 
-                "custom-project",
-                "Custom project for user-defined testing scenarios");
+    Console.WriteLine("\n🎉 Dynamic Test Generation Completed!");
+    Console.WriteLine("\n💡 Framework Features Demonstrated:");
+    Console.WriteLine("   ✓ Dynamic test generation from user stories");
+    Console.WriteLine("   ✓ User story document management");
+    Console.WriteLine("   ✓ Automatic analysis of user story content");
+    Console.WriteLine("   ✓ Smart extraction of URLs, credentials, and actions");
+    Console.WriteLine("   ✓ Context-aware test step generation");
+    Console.WriteLine("   ✓ File upload support for user stories");
+    Console.WriteLine("   ✓ Real-time test execution with detailed reporting");
 
-            Console.WriteLine($"✅ Created custom test scenario: {customScenarioId}");
-
-            var customResult = await testService.ExecuteTest(customScenarioId);
-            Console.WriteLine($"✅ Custom Test Result: {(customResult.Passed ? "PASSED" : "FAILED")}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"❌ Error creating custom test: {ex.Message}");
-        }
-    }
-
-    Console.WriteLine("\n🎉 All demos completed successfully!");
-    Console.WriteLine("\n💡 Key Features Demonstrated:");
-    Console.WriteLine("   ✓ AI-powered test generation from natural language");
-    Console.WriteLine("   ✓ Multiple test executors (UI and API)");
-    Console.WriteLine("   ✓ Test execution with detailed results");
-    Console.WriteLine("   ✓ Project-based test management");
-    Console.WriteLine("   ✓ Comprehensive statistics and reporting");
-    Console.WriteLine("   ✓ Health monitoring and diagnostics");
-
-    logger.LogInformation("AI Testing Framework Console Demo completed successfully");
+    logger.LogInformation("Dynamic Test Generation Framework demo completed successfully");
 }
 catch (Exception ex)
 {
@@ -192,13 +273,13 @@ Console.ReadKey();
 public class UITestConfiguration
 {
     public string BaseUrl { get; set; } = string.Empty;
-    public bool Headless { get; set; } = true; // Default to headless for console
+    public bool Headless { get; set; } = false; // Set to false to see the browser during testing
     public string WindowSize { get; set; } = "1920,1080";
     public int DefaultTimeoutSeconds { get; set; } = 30;
     public int ImplicitWaitSeconds { get; set; } = 10;
-    public int MaxParallelSessions { get; set; } = 1; // Single session for console
+    public int MaxParallelSessions { get; set; } = 1;
     public string ScreenshotPath { get; set; } = "screenshots";
-    public bool CaptureScreenshotOnFailure { get; set; } = false; // Disable for console
+    public bool CaptureScreenshotOnFailure { get; set; } = true; // Enable screenshots for debugging
     public Dictionary<string, object> AdditionalOptions { get; set; } = new();
 }
 
@@ -209,278 +290,8 @@ public class APITestConfiguration
     public Dictionary<string, string> DefaultHeaders { get; set; } = new();
 }
 
-// Mock implementations for demo purposes
-public class MockLLMService : ILLMService
-{
-    public Task<GenericTestingFramework.Core.Models.TestScenario> GenerateTestFromNaturalLanguage(
-        string userStory, string projectContext, CancellationToken cancellationToken = default)
-    {
-        var scenario = new GenericTestingFramework.Core.Models.TestScenario
-        {
-            Title = ExtractTitleFromUserStory(userStory),
-            Description = $"Generated test for: {userStory.Trim()}",
-            OriginalUserStory = userStory,
-            Type = DetermineTestType(userStory),
-            Status = GenericTestingFramework.Core.Models.TestStatus.Generated,
-            Priority = GenericTestingFramework.Core.Models.TestPriority.Medium,
-            Steps = GenerateStepsFromUserStory(userStory)
-        };
-
-        return Task.FromResult(scenario);
-    }
-
-    public Task<List<GenericTestingFramework.Core.Models.TestStep>> RefineTestSteps(
-        List<GenericTestingFramework.Core.Models.TestStep> steps, string feedback, CancellationToken cancellationToken = default)
-    {
-        // Mock refinement - just return original steps
-        return Task.FromResult(steps);
-    }
-
-    public Task<string> AnalyzeTestFailure(
-        GenericTestingFramework.Core.Models.TestResult result, CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult("Mock analysis: Test failed due to simulated conditions. Consider checking test data and environment setup.");
-    }
-
-    public Task<Dictionary<string, object>> GenerateTestData(
-        GenericTestingFramework.Core.Models.TestScenario testScenario, string dataRequirements, CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(new Dictionary<string, object>
-        {
-            ["username"] = "testuser@example.com",
-            ["password"] = "TestPassword123!",
-            ["vin"] = "1HGBH41JXMN109186",
-            ["zipcode"] = "90210"
-        });
-    }
-
-    public Task<List<GenericTestingFramework.Core.Models.TestScenario>> OptimizeTestScenarios(
-        List<GenericTestingFramework.Core.Models.TestScenario> scenarios, CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(scenarios);
-    }
-
-    public Task<List<GenericTestingFramework.Core.Models.TestScenario>> SuggestAdditionalTests(
-        List<GenericTestingFramework.Core.Models.TestScenario> existingScenarios, string projectContext, CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(new List<GenericTestingFramework.Core.Models.TestScenario>());
-    }
-
-    public Task<GenericTestingFramework.Core.Interfaces.TestValidationResult> ValidateTestScenario(
-        GenericTestingFramework.Core.Models.TestScenario scenario, CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(new GenericTestingFramework.Core.Interfaces.TestValidationResult
-        {
-            IsValid = true,
-            QualityScore = 85,
-            Issues = new List<string>(),
-            Suggestions = new List<string> { "Consider adding more edge case testing" }
-        });
-    }
-
-    private string ExtractTitleFromUserStory(string userStory)
-    {
-        if (userStory.Contains("quote", StringComparison.OrdinalIgnoreCase))
-            return "Auto Insurance Quote Test";
-        if (userStory.Contains("login", StringComparison.OrdinalIgnoreCase))
-            return "Customer Login Test";
-        if (userStory.Contains("claim", StringComparison.OrdinalIgnoreCase))
-            return "Claims Processing Test";
-        if (userStory.Contains("payment", StringComparison.OrdinalIgnoreCase))
-            return "Payment Processing Test";
-        
-        return "Generated Test Scenario";
-    }
-
-    private GenericTestingFramework.Core.Models.TestType DetermineTestType(string userStory)
-    {
-        if (userStory.Contains("api", StringComparison.OrdinalIgnoreCase) || 
-            userStory.Contains("service", StringComparison.OrdinalIgnoreCase))
-            return GenericTestingFramework.Core.Models.TestType.API;
-        
-        return GenericTestingFramework.Core.Models.TestType.UI;
-    }
-
-    private List<GenericTestingFramework.Core.Models.TestStep> GenerateStepsFromUserStory(string userStory)
-    {
-        var steps = new List<GenericTestingFramework.Core.Models.TestStep>();
-
-        if (userStory.Contains("quote", StringComparison.OrdinalIgnoreCase))
-        {
-            steps.AddRange(new[]
-            {
-                new GenericTestingFramework.Core.Models.TestStep
-                {
-                    Order = 1,
-                    Action = "navigate",
-                    Target = "/quote",
-                    Description = "Navigate to quote page",
-                    ExpectedResult = "Quote page loads successfully"
-                },
-                new GenericTestingFramework.Core.Models.TestStep
-                {
-                    Order = 2,
-                    Action = "enter_text",
-                    Target = "#zipcode",
-                    Description = "Enter ZIP code",
-                    ExpectedResult = "ZIP code entered",
-                    Parameters = new Dictionary<string, object> { ["value"] = "90210" }
-                },
-                new GenericTestingFramework.Core.Models.TestStep
-                {
-                    Order = 3,
-                    Action = "click",
-                    Target = "#get-quote-btn",
-                    Description = "Click get quote button",
-                    ExpectedResult = "Quote form appears"
-                }
-            });
-        }
-        else if (userStory.Contains("login", StringComparison.OrdinalIgnoreCase))
-        {
-            steps.AddRange(new[]
-            {
-                new GenericTestingFramework.Core.Models.TestStep
-                {
-                    Order = 1,
-                    Action = "navigate",
-                    Target = "/login",
-                    Description = "Navigate to login page",
-                    ExpectedResult = "Login page loads"
-                },
-                new GenericTestingFramework.Core.Models.TestStep
-                {
-                    Order = 2,
-                    Action = "enter_text",
-                    Target = "#username",
-                    Description = "Enter username",
-                    ExpectedResult = "Username entered",
-                    Parameters = new Dictionary<string, object> { ["value"] = "testuser@example.com" }
-                },
-                new GenericTestingFramework.Core.Models.TestStep
-                {
-                    Order = 3,
-                    Action = "enter_text",
-                    Target = "#password",
-                    Description = "Enter password",
-                    ExpectedResult = "Password entered",
-                    Parameters = new Dictionary<string, object> { ["value"] = "TestPassword123!" }
-                },
-                new GenericTestingFramework.Core.Models.TestStep
-                {
-                    Order = 4,
-                    Action = "click",
-                    Target = "#login-button",
-                    Description = "Click login button",
-                    ExpectedResult = "User logged in successfully"
-                }
-            });
-        }
-        else
-        {
-            steps.Add(new GenericTestingFramework.Core.Models.TestStep
-            {
-                Order = 1,
-                Action = "verify",
-                Target = "body",
-                Description = "Verify page loads",
-                ExpectedResult = "Page content is visible"
-            });
-        }
-
-        return steps;
-    }
-}
-
-// Mock executors for demo
-public class MockUITestExecutor : BaseTestExecutor, ITestExecutor
-{
-    public string Name => "Mock UI Test Executor";
-
-    public bool CanExecute(GenericTestingFramework.Core.Models.TestType testType) => 
-        testType == GenericTestingFramework.Core.Models.TestType.UI || 
-        testType == GenericTestingFramework.Core.Models.TestType.Mixed;
-
-    public async Task<GenericTestingFramework.Core.Models.TestResult> ExecuteTest(
-        GenericTestingFramework.Core.Models.TestScenario scenario, CancellationToken cancellationToken = default)
-    {
-        var result = new GenericTestingFramework.Core.Models.TestResult
-        {
-            ScenarioId = scenario.Id,
-            StartedAt = DateTime.UtcNow
-        };
-
-        foreach (var step in scenario.Steps.Where(s => IsUIAction(s.Action)))
-        {
-            await Task.Delay(500, cancellationToken); // Simulate execution time
-            
-            var stepResult = new GenericTestingFramework.Core.Models.StepResult
-            {
-                StepId = step.Id,
-                StepName = step.Description,
-                Action = step.Action,
-                Target = step.Target,
-                Passed = true,
-                Message = $"Mock execution successful for {step.Action}",
-                StartedAt = DateTime.UtcNow,
-                CompletedAt = DateTime.UtcNow.AddMilliseconds(500),
-                Duration = TimeSpan.FromMilliseconds(500)
-            };
-
-            result.AddStepResult(stepResult);
-        }
-
-        result.Complete();
-        return result;
-    }
-
-    public Task<GenericTestingFramework.Core.Interfaces.ExecutorValidationResult> ValidateScenario(
-        GenericTestingFramework.Core.Models.TestScenario scenario)
-    {
-        return Task.FromResult(new GenericTestingFramework.Core.Interfaces.ExecutorValidationResult
-        {
-            CanExecute = true,
-            Messages = new List<string> { "Mock validation successful" }
-        });
-    }
-
-    public GenericTestingFramework.Core.Interfaces.ExecutorCapabilities GetCapabilities()
-    {
-        return new GenericTestingFramework.Core.Interfaces.ExecutorCapabilities
-        {
-            SupportedTestTypes = new List<GenericTestingFramework.Core.Models.TestType> 
-            { 
-                GenericTestingFramework.Core.Models.TestType.UI, 
-                GenericTestingFramework.Core.Models.TestType.Mixed 
-            },
-            SupportedActions = new List<string> { "navigate", "click", "enter_text", "verify" },
-            MaxParallelExecutions = 1,
-            SupportsScreenshots = false
-        };
-    }
-
-    public Task<GenericTestingFramework.Core.Interfaces.HealthCheckResult> PerformHealthCheck(CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(new GenericTestingFramework.Core.Interfaces.HealthCheckResult
-        {
-            IsHealthy = true,
-            Message = "Mock UI executor is healthy",
-            ResponseTime = TimeSpan.FromMilliseconds(100)
-        });
-    }
-
-    public Task<bool> Initialize(Dictionary<string, object> configuration, CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(true);
-    }
-
-    public Task Cleanup(CancellationToken cancellationToken = default)
-    {
-        return Task.CompletedTask;
-    }
-}
-
-public class MockAPITestExecutor : BaseTestExecutor, ITestExecutor
+// Keep the mock API executor for now since we're focusing on UI testing
+public class MockAPITestExecutor : ITestExecutor
 {
     public string Name => "Mock API Test Executor";
 
@@ -494,29 +305,11 @@ public class MockAPITestExecutor : BaseTestExecutor, ITestExecutor
         var result = new GenericTestingFramework.Core.Models.TestResult
         {
             ScenarioId = scenario.Id,
-            StartedAt = DateTime.UtcNow
+            StartedAt = DateTime.UtcNow,
+            Environment = GenericTestingFramework.Core.Models.TestEnvironment.Testing
         };
 
-        foreach (var step in scenario.Steps.Where(s => IsAPIAction(s.Action)))
-        {
-            await Task.Delay(300, cancellationToken); // Simulate API call time
-            
-            var stepResult = new GenericTestingFramework.Core.Models.StepResult
-            {
-                StepId = step.Id,
-                StepName = step.Description,
-                Action = step.Action,
-                Target = step.Target,
-                Passed = true,
-                Message = $"Mock API call successful for {step.Action}",
-                StartedAt = DateTime.UtcNow,
-                CompletedAt = DateTime.UtcNow.AddMilliseconds(300),
-                Duration = TimeSpan.FromMilliseconds(300)
-            };
-
-            result.AddStepResult(stepResult);
-        }
-
+        await Task.Delay(100, cancellationToken);
         result.Complete();
         return result;
     }
@@ -527,7 +320,7 @@ public class MockAPITestExecutor : BaseTestExecutor, ITestExecutor
         return Task.FromResult(new GenericTestingFramework.Core.Interfaces.ExecutorValidationResult
         {
             CanExecute = true,
-            Messages = new List<string> { "Mock validation successful" }
+            Messages = new List<string> { "Mock API validation passed" }
         });
     }
 
@@ -541,18 +334,18 @@ public class MockAPITestExecutor : BaseTestExecutor, ITestExecutor
                 GenericTestingFramework.Core.Models.TestType.Mixed 
             },
             SupportedActions = new List<string> { "api_get", "api_post", "verify_status", "verify_body" },
-            MaxParallelExecutions = 5,
+            MaxParallelExecutions = 3,
             SupportsScreenshots = false
         };
     }
 
     public Task<GenericTestingFramework.Core.Interfaces.HealthCheckResult> PerformHealthCheck(CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(new GenericTestingFramework.Core.Interfaces.HealthCheckResult
+        return Task.FromResult(new GenericTestingFramework.Core.Interfaces.ExecutorHealthCheckResult
         {
             IsHealthy = true,
             Message = "Mock API executor is healthy",
-            ResponseTime = TimeSpan.FromMilliseconds(50)
+            ResponseTime = TimeSpan.FromMilliseconds(25)
         });
     }
 
