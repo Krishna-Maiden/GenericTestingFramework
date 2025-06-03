@@ -2,15 +2,18 @@ using GenericTestingFramework.Services.Documents.Models;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace GenericTestingFramework.Services.Documents;
 
 /// <summary>
-/// Complete implementation of document manager for user stories
+/// Enhanced DocumentManager with duplicate prevention and better tracking
 /// </summary>
 public class DocumentManager : IDocumentManager
 {
     private readonly Dictionary<string, UserStoryDocument> _documents = new();
+    private readonly Dictionary<string, string> _contentHashes = new(); // Hash -> DocumentId mapping
     private readonly ILogger<DocumentManager> _logger;
 
     public DocumentManager(ILogger<DocumentManager> logger)
@@ -26,6 +29,16 @@ public class DocumentManager : IDocumentManager
         var content = await File.ReadAllTextAsync(filePath, cancellationToken);
         var fileName = Path.GetFileNameWithoutExtension(filePath);
 
+        // Check for duplicate content
+        var contentHash = ComputeContentHash(content);
+        if (_contentHashes.TryGetValue(contentHash, out var existingDocId))
+        {
+            var existingDoc = _documents[existingDocId];
+            _logger.LogInformation("File {FileName} has same content as existing document {ExistingFileName}. Returning existing document.",
+                fileName, existingDoc.FileName);
+            return existingDoc;
+        }
+
         var document = new UserStoryDocument
         {
             Id = Guid.NewGuid().ToString(),
@@ -40,13 +53,25 @@ public class DocumentManager : IDocumentManager
         };
 
         _documents[document.Id] = document;
-        _logger.LogInformation("Uploaded user story document: {FileName}", fileName);
+        _contentHashes[contentHash] = document.Id;
+
+        _logger.LogInformation("Uploaded user story document: {FileName} with ID: {DocumentId}", fileName, document.Id);
 
         return document;
     }
 
     public async Task<UserStoryDocument> CreateUserStoryFromText(string userStoryText, string projectContext = "", CancellationToken cancellationToken = default)
     {
+        // Check for duplicate content
+        var contentHash = ComputeContentHash(userStoryText);
+        if (_contentHashes.TryGetValue(contentHash, out var existingDocId))
+        {
+            var existingDoc = _documents[existingDocId];
+            _logger.LogInformation("Text content matches existing document {ExistingFileName}. Returning existing document.",
+                existingDoc.FileName);
+            return existingDoc;
+        }
+
         var document = new UserStoryDocument
         {
             Id = Guid.NewGuid().ToString(),
@@ -60,7 +85,9 @@ public class DocumentManager : IDocumentManager
         };
 
         _documents[document.Id] = document;
-        _logger.LogInformation("Created user story document from text");
+        _contentHashes[contentHash] = document.Id;
+
+        _logger.LogInformation("Created user story document from text with ID: {DocumentId}", document.Id);
 
         return document;
     }
@@ -72,6 +99,7 @@ public class DocumentManager : IDocumentManager
             .OrderByDescending(d => d.UploadedAt)
             .ToList();
 
+        _logger.LogDebug("Retrieved {Count} user story documents for project: {ProjectId}", documents.Count, projectId);
         return await Task.FromResult(documents);
     }
 
@@ -99,17 +127,32 @@ public class DocumentManager : IDocumentManager
     public async Task<UserStoryDocument?> GetUserStoryById(string documentId, CancellationToken cancellationToken = default)
     {
         _documents.TryGetValue(documentId, out var document);
+        _logger.LogDebug("Retrieved document by ID: {DocumentId}, Found: {Found}", documentId, document != null);
         return await Task.FromResult(document);
     }
 
     public async Task<bool> UpdateUserStory(UserStoryDocument document, CancellationToken cancellationToken = default)
     {
         if (document == null || !_documents.ContainsKey(document.Id))
-            return false;
-
-        // Update metadata if content changed
-        if (_documents[document.Id].Content != document.Content)
         {
+            _logger.LogWarning("Cannot update document: Document is null or not found with ID: {DocumentId}", document?.Id);
+            return false;
+        }
+
+        var oldDocument = _documents[document.Id];
+
+        // If content changed, update hash mapping
+        if (oldDocument.Content != document.Content)
+        {
+            // Remove old hash mapping
+            var oldHash = ComputeContentHash(oldDocument.Content);
+            _contentHashes.Remove(oldHash);
+
+            // Add new hash mapping
+            var newHash = ComputeContentHash(document.Content);
+            _contentHashes[newHash] = document.Id;
+
+            // Update metadata
             document.Metadata = await ExtractMetadata(document.Content);
             document.ProjectContext = ExtractProjectContextFromContent(document.Content);
         }
@@ -123,12 +166,22 @@ public class DocumentManager : IDocumentManager
 
     public async Task<bool> DeleteUserStory(string documentId, CancellationToken cancellationToken = default)
     {
-        var removed = _documents.Remove(documentId);
-        if (removed)
+        if (_documents.TryGetValue(documentId, out var document))
         {
-            _logger.LogInformation("Deleted user story document: {DocumentId}", documentId);
+            // Remove hash mapping
+            var contentHash = ComputeContentHash(document.Content);
+            _contentHashes.Remove(contentHash);
+
+            var removed = _documents.Remove(documentId);
+            if (removed)
+            {
+                _logger.LogInformation("Deleted user story document: {DocumentId}", documentId);
+            }
+            return await Task.FromResult(removed);
         }
-        return await Task.FromResult(removed);
+
+        _logger.LogWarning("Cannot delete document: Document not found with ID: {DocumentId}", documentId);
+        return false;
     }
 
     public async Task<DocumentValidationResult> ValidateUserStory(UserStoryDocument document)
@@ -179,6 +232,9 @@ public class DocumentManager : IDocumentManager
 
         validation.QualityScore = Math.Max(0, Math.Min(100, score));
 
+        _logger.LogDebug("Validated document {DocumentId}: Quality Score: {Score}, Valid: {IsValid}",
+            document.Id, validation.QualityScore, validation.IsValid);
+
         return await Task.FromResult(validation);
     }
 
@@ -217,6 +273,16 @@ public class DocumentManager : IDocumentManager
     }
 
     #region Private Helper Methods
+
+    private string ComputeContentHash(string content)
+    {
+        // Normalize content for hash comparison (remove extra whitespace, convert to lowercase)
+        var normalizedContent = Regex.Replace(content.ToLowerInvariant().Trim(), @"\s+", " ");
+
+        using var sha256 = SHA256.Create();
+        var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(normalizedContent));
+        return Convert.ToBase64String(hashBytes);
+    }
 
     private string ExtractProjectContextFromContent(string content)
     {
@@ -434,6 +500,16 @@ public class DocumentManager : IDocumentManager
         {
             return url;
         }
+    }
+
+    public int GetDocumentCount()
+    {
+        return _documents.Count;
+    }
+
+    public List<string> GetAllDocumentIds()
+    {
+        return _documents.Keys.ToList();
     }
 
     #endregion

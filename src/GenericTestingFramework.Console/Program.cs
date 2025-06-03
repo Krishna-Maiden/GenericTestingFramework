@@ -75,15 +75,31 @@ try
 
     logger.LogInformation("Starting Dynamic Test Generation Framework");
 
-    // Check for available user story files
+    // Check for available user story files with enhanced discovery
     var userStoryFiles = GetAvailableUserStoryFiles();
 
     Console.WriteLine("\n📝 Dynamic Test Generation Options");
     Console.WriteLine("==================================");
 
+    // Enhanced file discovery feedback
+    if (!userStoryFiles.Any())
+    {
+        Console.WriteLine("\n⚠️  No user story files found in standard locations.");
+        Console.WriteLine("   Searched in:");
+        ShowSearchedPaths();
+        Console.WriteLine("\n   Consider:");
+        Console.WriteLine("   1. Create docs/user-stories/ directory");
+        Console.WriteLine("   2. Place your .txt or .md files there");
+        Console.WriteLine("   3. Or use option 1 to upload from any location");
+    }
+    else
+    {
+        Console.WriteLine($"\n✅ Found {userStoryFiles.Count} user story file(s)");
+    }
+
     // Show available options
     Console.WriteLine("\nChoose an option:");
-    Console.WriteLine("1. Upload a user story file");
+    Console.WriteLine("1. Upload a user story file (browse to any location)");
     Console.WriteLine("2. Enter user story text manually");
 
     if (userStoryFiles.Any())
@@ -91,7 +107,10 @@ try
         Console.WriteLine("3. Select from available user story files:");
         for (int i = 0; i < userStoryFiles.Count; i++)
         {
-            Console.WriteLine($"   {i + 1}. {Path.GetFileName(userStoryFiles[i])}");
+            var fileName = Path.GetFileName(userStoryFiles[i]);
+            var fileInfo = new FileInfo(userStoryFiles[i]);
+            var relativePath = GetRelativePath(userStoryFiles[i]);
+            Console.WriteLine($"   {i + 1}. {fileName} ({relativePath})");
         }
     }
 
@@ -301,37 +320,142 @@ Console.ReadKey();
 static List<string> GetAvailableUserStoryFiles()
 {
     var files = new List<string>();
-    var searchPaths = new[]
+    var currentDirectory = Directory.GetCurrentDirectory();
+
+    // Enhanced search paths - try both relative and absolute paths
+    var searchPaths = new List<string>
     {
-        "docs/user-stories",
-        "docs",
-        "user-stories",
-        ".",
-        "../../../docs/user-stories",
-        "../../../docs",
-        "../../../../docs/user-stories",
-        "../../../../docs"
+        // Relative to current directory
+        Path.Combine(currentDirectory, "docs", "user-stories"),
+        Path.Combine(currentDirectory, "docs"),
+        Path.Combine(currentDirectory, "user-stories"),
+        Path.Combine(currentDirectory),
+        
+        // Go up directory tree and search
+        Path.Combine(Directory.GetParent(currentDirectory)?.FullName ?? currentDirectory, "docs", "user-stories"),
+        Path.Combine(Directory.GetParent(currentDirectory)?.FullName ?? currentDirectory, "docs"),
+        
+        // Go up two levels (in case we're in bin/Debug/net8.0)
+        Path.Combine(Directory.GetParent(Directory.GetParent(currentDirectory)?.FullName ?? currentDirectory)?.FullName ?? currentDirectory, "docs", "user-stories"),
+        Path.Combine(Directory.GetParent(Directory.GetParent(currentDirectory)?.FullName ?? currentDirectory)?.FullName ?? currentDirectory, "docs"),
+        
+        // Go up three levels (in case we're in bin/Debug/net8.0)
+        Path.Combine(Directory.GetParent(Directory.GetParent(Directory.GetParent(currentDirectory)?.FullName ?? currentDirectory)?.FullName ?? currentDirectory)?.FullName ?? currentDirectory, "docs", "user-stories"),
+        Path.Combine(Directory.GetParent(Directory.GetParent(Directory.GetParent(currentDirectory)?.FullName ?? currentDirectory)?.FullName ?? currentDirectory)?.FullName ?? currentDirectory, "docs"),
+        
+        // Search from solution root if we can find it
+        FindSolutionRoot(currentDirectory)
     };
 
-    var extensions = new[] { "*.txt", "*.md" };
+    // Remove duplicates and null paths
+    searchPaths = searchPaths.Where(p => !string.IsNullOrEmpty(p)).Distinct().ToList();
 
-    foreach (var path in searchPaths)
+    var extensions = new[] { "*.txt", "*.md", "*.markdown" };
+
+    Console.WriteLine($"\n🔍 Searching for user story files...");
+    Console.WriteLine($"   Current directory: {currentDirectory}");
+
+    foreach (var path in searchPaths.Where(Directory.Exists))
     {
-        if (Directory.Exists(path))
+        Console.WriteLine($"   Searching: {path}");
+
+        foreach (var ext in extensions)
         {
-            foreach (var ext in extensions)
+            try
             {
-                files.AddRange(Directory.GetFiles(path, ext, SearchOption.TopDirectoryOnly));
+                var foundFiles = Directory.GetFiles(path, ext, SearchOption.TopDirectoryOnly);
+                files.AddRange(foundFiles);
+
+                if (foundFiles.Any())
+                {
+                    Console.WriteLine($"     Found {foundFiles.Length} {ext} file(s)");
+                    foreach (var file in foundFiles)
+                    {
+                        Console.WriteLine($"       - {Path.GetFileName(file)}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"     Error searching {path}: {ex.Message}");
             }
         }
     }
 
-    return files.Distinct().ToList();
+    var uniqueFiles = files.Distinct().ToList();
+    Console.WriteLine($"\n   Total unique files found: {uniqueFiles.Count}");
+
+    return uniqueFiles;
+}
+
+static string? FindSolutionRoot(string startPath)
+{
+    var current = new DirectoryInfo(startPath);
+
+    while (current != null)
+    {
+        // Look for .sln file or typical solution indicators
+        if (current.GetFiles("*.sln").Any() ||
+            current.GetDirectories("src").Any() ||
+            current.GetDirectories("docs").Any())
+        {
+            var docsPath = Path.Combine(current.FullName, "docs", "user-stories");
+            if (Directory.Exists(docsPath))
+            {
+                return docsPath;
+            }
+
+            docsPath = Path.Combine(current.FullName, "docs");
+            if (Directory.Exists(docsPath))
+            {
+                return docsPath;
+            }
+        }
+
+        current = current.Parent;
+    }
+
+    return null;
+}
+
+static void ShowSearchedPaths()
+{
+    var currentDirectory = Directory.GetCurrentDirectory();
+    var searchPaths = new[]
+    {
+        "docs/user-stories/",
+        "docs/",
+        "user-stories/",
+        "../docs/user-stories/",
+        "../../docs/user-stories/",
+        "../../../docs/user-stories/"
+    };
+
+    foreach (var path in searchPaths)
+    {
+        var fullPath = Path.Combine(currentDirectory, path);
+        var exists = Directory.Exists(fullPath) ? "✅" : "❌";
+        Console.WriteLine($"     {exists} {path}");
+    }
+}
+
+static string GetRelativePath(string filePath)
+{
+    var currentDir = Directory.GetCurrentDirectory();
+    try
+    {
+        return Path.GetRelativePath(currentDir, filePath);
+    }
+    catch
+    {
+        return filePath;
+    }
 }
 
 static async Task<UserStoryDocument?> HandleFileUpload(IDocumentManager documentManager)
 {
     Console.WriteLine("\n📁 Enter the full path to your user story file:");
+    Console.WriteLine("   (You can drag and drop a file here or type the path)");
     var filePath = Console.ReadLine()?.Trim().Trim('"');
 
     if (string.IsNullOrWhiteSpace(filePath))
@@ -340,10 +464,33 @@ static async Task<UserStoryDocument?> HandleFileUpload(IDocumentManager document
         return null;
     }
 
+    // Handle drag-and-drop or quoted paths
+    filePath = filePath.Trim('"', '\'');
+
     if (!File.Exists(filePath))
     {
         Console.WriteLine($"❌ File not found: {filePath}");
-        return null;
+
+        // Try to help with common issues
+        if (!Path.IsPathFullyQualified(filePath))
+        {
+            var currentDir = Directory.GetCurrentDirectory();
+            var attemptPath = Path.Combine(currentDir, filePath);
+            if (File.Exists(attemptPath))
+            {
+                filePath = attemptPath;
+                Console.WriteLine($"✅ Found file at: {filePath}");
+            }
+            else
+            {
+                Console.WriteLine($"   Also tried: {attemptPath}");
+                return null;
+            }
+        }
+        else
+        {
+            return null;
+        }
     }
 
     try
@@ -411,10 +558,15 @@ static async Task<UserStoryDocument?> HandleFileSelection(IDocumentManager docum
     {
         var fileName = Path.GetFileName(availableFiles[i]);
         var fileInfo = new FileInfo(availableFiles[i]);
-        Console.WriteLine($"   {i + 1}. {fileName} ({fileInfo.Length} bytes, modified: {fileInfo.LastWriteTime:yyyy-MM-dd})");
+        var relativePath = GetRelativePath(availableFiles[i]);
+        Console.WriteLine($"   {i + 1}. {fileName}");
+        Console.WriteLine($"      Path: {relativePath}");
+        Console.WriteLine($"      Size: {fileInfo.Length} bytes");
+        Console.WriteLine($"      Modified: {fileInfo.LastWriteTime:yyyy-MM-dd HH:mm:ss}");
+        Console.WriteLine();
     }
 
-    Console.WriteLine($"\nSelect a file (1-{availableFiles.Count}):");
+    Console.WriteLine($"Select a file (1-{availableFiles.Count}):");
     var selection = Console.ReadLine()?.Trim();
 
     if (!int.TryParse(selection, out var fileIndex) || fileIndex < 1 || fileIndex > availableFiles.Count)

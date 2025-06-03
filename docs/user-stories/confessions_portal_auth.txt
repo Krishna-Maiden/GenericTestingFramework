@@ -1,4 +1,4 @@
-Test Authentication with credentials admin@confess.com, Admin@123 
+Test Authentication with credentials admin@confess.com, Admin3@123 
 for Confessions tracking Admin Portal at https://maidencube.com/cube-admin-prod/
 
 As an administrator, I want to securely login to the confessions tracking portal 
@@ -10,14 +10,14 @@ Test Scenario: Test Authentication with provided credentials
 
 Acceptance Criteria:
 - Navigate to the confessions tracking admin portal
-- Enter valid admin credentials (admin@confess.com / Admin@123)
+- Enter valid admin credentials (admin@confess.com / Admin3@123)
 - Successfully authenticate and access the admin dashboard
 - Verify that admin features are accessible after login
 - Ensure proper error handling for invalid credentials
 
 Test Data:
 Username: admin@confess.com
-Password: Admin@123
+Password: Admin3@123
 Portal URL: https://maidencube.com/cube-admin-prod/
 
 Expected Flow:
