@@ -18,14 +18,14 @@ public class OpenAILLMService : ILLMService
     private const string OpenAIApiUrl = "https://api.openai.com/v1/chat/completions";
 
     public OpenAILLMService(
-        HttpClient httpClient, 
+        HttpClient httpClient,
         IOptions<LLMConfiguration> configuration,
         ILogger<OpenAILLMService> logger)
     {
         _httpClient = httpClient;
         _configuration = configuration.Value;
         _logger = logger;
-        
+
         // Configure HTTP client for OpenAI
         _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_configuration.ApiKey}");
         _httpClient.DefaultRequestHeaders.Add("User-Agent", "GenericTestingFramework/1.0");
@@ -33,19 +33,19 @@ public class OpenAILLMService : ILLMService
     }
 
     public async Task<TestScenario> GenerateTestFromNaturalLanguage(
-        string userStory, 
-        string projectContext, 
+        string userStory,
+        string projectContext,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Generating test scenario from user story");
 
         var prompt = BuildTestGenerationPrompt(userStory, projectContext);
-        
+
         try
         {
             var response = await CallOpenAI(prompt, cancellationToken);
             var scenario = ParseTestScenarioFromResponse(response, userStory);
-            
+
             _logger.LogInformation("Successfully generated test scenario: {Title}", scenario.Title);
             return scenario;
         }
@@ -57,8 +57,8 @@ public class OpenAILLMService : ILLMService
     }
 
     public async Task<List<TestStep>> RefineTestSteps(
-        List<TestStep> steps, 
-        string feedback, 
+        List<TestStep> steps,
+        string feedback,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Refining {StepCount} test steps based on feedback", steps.Count);
@@ -70,7 +70,7 @@ public class OpenAILLMService : ILLMService
         {
             var response = await CallOpenAI(prompt, cancellationToken);
             var refinedSteps = ParseTestStepsFromResponse(response);
-            
+
             _logger.LogInformation("Successfully refined test steps to {NewStepCount} steps", refinedSteps.Count);
             return refinedSteps;
         }
@@ -82,7 +82,7 @@ public class OpenAILLMService : ILLMService
     }
 
     public async Task<string> AnalyzeTestFailure(
-        TestResult result, 
+        TestResult result,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Analyzing test failure for scenario {ScenarioId}", result.ScenarioId);
@@ -103,8 +103,8 @@ public class OpenAILLMService : ILLMService
     }
 
     public async Task<Dictionary<string, object>> GenerateTestData(
-        TestScenario testScenario, 
-        string dataRequirements, 
+        TestScenario testScenario,
+        string dataRequirements,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Generating test data for scenario {ScenarioId}", testScenario.Id);
@@ -115,7 +115,7 @@ public class OpenAILLMService : ILLMService
         {
             var response = await CallOpenAI(prompt, cancellationToken);
             var testData = ParseTestDataFromResponse(response);
-            
+
             _logger.LogInformation("Successfully generated test data with {DataCount} entries", testData.Count);
             return testData;
         }
@@ -127,7 +127,7 @@ public class OpenAILLMService : ILLMService
     }
 
     public async Task<List<TestScenario>> OptimizeTestScenarios(
-        List<TestScenario> scenarios, 
+        List<TestScenario> scenarios,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Optimizing {ScenarioCount} test scenarios", scenarios.Count);
@@ -155,8 +155,8 @@ public class OpenAILLMService : ILLMService
     }
 
     public async Task<List<TestScenario>> SuggestAdditionalTests(
-        List<TestScenario> existingScenarios, 
-        string projectContext, 
+        List<TestScenario> existingScenarios,
+        string projectContext,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Suggesting additional tests based on {ExistingCount} scenarios", existingScenarios.Count);
@@ -167,7 +167,7 @@ public class OpenAILLMService : ILLMService
         {
             var response = await CallOpenAI(prompt, cancellationToken);
             var suggestedScenarios = ParseSuggestedScenariosFromResponse(response);
-            
+
             _logger.LogInformation("Successfully suggested {SuggestedCount} additional test scenarios", suggestedScenarios.Count);
             return suggestedScenarios;
         }
@@ -179,7 +179,7 @@ public class OpenAILLMService : ILLMService
     }
 
     public async Task<TestValidationResult> ValidateTestScenario(
-        TestScenario scenario, 
+        TestScenario scenario,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Validating test scenario {ScenarioId}", scenario.Id);
@@ -190,7 +190,7 @@ public class OpenAILLMService : ILLMService
         {
             var response = await CallOpenAI(prompt, cancellationToken);
             var validationResult = ParseValidationResultFromResponse(response);
-            
+
             _logger.LogInformation("Successfully validated test scenario with quality score {QualityScore}", validationResult.QualityScore);
             return validationResult;
         }
@@ -225,7 +225,7 @@ public class OpenAILLMService : ILLMService
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
         var response = await _httpClient.PostAsync(OpenAIApiUrl, content, cancellationToken);
-        
+
         if (!response.IsSuccessStatusCode)
         {
             var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -234,7 +234,7 @@ public class OpenAILLMService : ILLMService
 
         var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
         using var document = JsonDocument.Parse(responseContent);
-        
+
         var choices = document.RootElement.GetProperty("choices");
         if (choices.GetArrayLength() == 0)
         {
@@ -246,66 +246,62 @@ public class OpenAILLMService : ILLMService
 
     private string BuildTestGenerationPrompt(string userStory, string projectContext)
     {
-        return $"""
-            Generate a comprehensive automated test scenario for the following user story:
+        return $@"Generate a comprehensive automated test scenario for the following user story:
 
-            User Story: {userStory}
+User Story: {userStory}
 
-            Project Context: {projectContext}
+Project Context: {projectContext}
 
-            Please analyze the user story and determine:
-            1. Whether this requires UI testing, API testing, or both
-            2. The specific test steps needed to validate the user story
-            3. Expected outcomes and assertions
+Please analyze the user story and determine:
+1. Whether this requires UI testing, API testing, or both
+2. The specific test steps needed to validate the user story
+3. Expected outcomes and assertions
 
-            Return your response as a JSON object with this exact structure:
-            {{
-                "title": "Brief descriptive title for the test",
-                "type": "UI" | "API" | "Mixed",
-                "description": "Detailed description of what this test validates",
-                "priority": "Low" | "Medium" | "High" | "Critical",
-                "tags": ["tag1", "tag2"],
-                "preconditions": ["condition1", "condition2"],
-                "expectedOutcomes": ["outcome1", "outcome2"],
-                "steps": [
-                    {{
-                        "order": 1,
-                        "action": "navigate|click|enter_text|api_get|api_post|verify|wait|etc",
-                        "target": "CSS selector, URL, or API endpoint",
-                        "description": "Human readable description of this step",
-                        "expectedResult": "What should happen when this step executes",
-                        "parameters": {{"key": "value"}},
-                        "timeout": "00:00:30",
-                        "takeScreenshot": false,
-                        "continueOnFailure": false
-                    }}
-                ]
-            }}
+Return your response as a JSON object with this exact structure:
+{{
+    ""title"": ""Brief descriptive title for the test"",
+    ""type"": ""UI"" | ""API"" | ""Mixed"",
+    ""description"": ""Detailed description of what this test validates"",
+    ""priority"": ""Low"" | ""Medium"" | ""High"" | ""Critical"",
+    ""tags"": [""tag1"", ""tag2""],
+    ""preconditions"": [""condition1"", ""condition2""],
+    ""expectedOutcomes"": [""outcome1"", ""outcome2""],
+    ""steps"": [
+        {{
+            ""order"": 1,
+            ""action"": ""navigate|click|enter_text|api_get|api_post|verify|wait|etc"",
+            ""target"": ""CSS selector, URL, or API endpoint"",
+            ""description"": ""Human readable description of this step"",
+            ""expectedResult"": ""What should happen when this step executes"",
+            ""parameters"": {{""key"": ""value""}},
+            ""timeout"": ""00:00:30"",
+            ""takeScreenshot"": false,
+            ""continueOnFailure"": false
+        }}
+    ]
+}}
 
-            Focus on creating realistic, executable test steps that thoroughly validate the user story requirements.
-            """;
+Focus on creating realistic, executable test steps that thoroughly validate the user story requirements.";
     }
 
     private string BuildStepRefinementPrompt(string stepsJson, string feedback)
     {
-        return $"""
-            Please refine the following test steps based on the provided feedback:
+        return $@"Please refine the following test steps based on the provided feedback:
 
-            Current Test Steps:
-            {stepsJson}
+Current Test Steps:
+{stepsJson}
 
-            Feedback for Improvement:
-            {feedback}
+Feedback for Improvement:
+{feedback}
 
-            Please analyze the feedback and improve the test steps accordingly. Return the refined steps in the same JSON format as the input, but with improvements based on the feedback.
+Please analyze the feedback and improve the test steps accordingly. Return the refined steps in the same JSON format as the input, but with improvements based on the feedback.
 
-            Considerations:
-            - Make steps more reliable and maintainable
-            - Add better error handling where needed
-            - Improve assertions and validations
-            - Optimize step ordering and timing
-            - Add missing steps if identified in feedback
-            """;
+Considerations:
+- Make steps more reliable and maintainable
+- Add better error handling where needed
+- Improve assertions and validations
+- Optimize step ordering and timing
+- Add missing steps if identified in feedback";
     }
 
     private string BuildFailureAnalysisPrompt(TestResult result)
@@ -313,77 +309,71 @@ public class OpenAILLMService : ILLMService
         var failedSteps = result.StepResults.Where(sr => !sr.Passed).ToList();
         var failedStepsJson = JsonSerializer.Serialize(failedSteps, new JsonSerializerOptions { WriteIndented = true });
 
-        return $"""
-            Analyze the following test failure and provide actionable insights:
+        return $@"Analyze the following test failure and provide actionable insights:
 
-            Test Result Summary:
-            - Scenario ID: {result.ScenarioId}
-            - Overall Status: {(result.Passed ? "PASSED" : "FAILED")}
-            - Duration: {result.Duration}
-            - Environment: {result.Environment}
-            - Executed By: {result.ExecutedBy}
-            - Message: {result.Message}
+Test Result Summary:
+- Scenario ID: {result.ScenarioId}
+- Overall Status: {(result.Passed ? "PASSED" : "FAILED")}
+- Duration: {result.Duration}
+- Environment: {result.Environment}
+- Executed By: {result.ExecutedBy}
+- Message: {result.Message}
 
-            Failed Steps:
-            {failedStepsJson}
+Failed Steps:
+{failedStepsJson}
 
-            Error Details:
-            {JsonSerializer.Serialize(result.Error, new JsonSerializerOptions { WriteIndented = true })}
+Error Details:
+{JsonSerializer.Serialize(result.Error, new JsonSerializerOptions { WriteIndented = true })}
 
-            Log Output:
-            {result.LogOutput}
+Log Output:
+{result.LogOutput}
 
-            Please provide:
-            1. Root cause analysis of the failure
-            2. Specific recommendations to fix the issue
-            3. Suggestions to prevent similar failures in the future
-            4. Any test improvements that could make it more robust
+Please provide:
+1. Root cause analysis of the failure
+2. Specific recommendations to fix the issue
+3. Suggestions to prevent similar failures in the future
+4. Any test improvements that could make it more robust
 
-            Format your response as a clear, actionable analysis that a developer or QA engineer can use to resolve the issue.
-            """;
+Format your response as a clear, actionable analysis that a developer or QA engineer can use to resolve the issue.";
     }
 
     private string BuildTestDataGenerationPrompt(TestScenario testScenario, string dataRequirements)
     {
-        return $"""
-            Generate test data for the following test scenario:
+        return $@"Generate test data for the following test scenario:
 
-            Test Scenario: {testScenario.Title}
-            Description: {testScenario.Description}
-            Type: {testScenario.Type}
+Test Scenario: {testScenario.Title}
+Description: {testScenario.Description}
+Type: {testScenario.Type}
 
-            Data Requirements:
-            {dataRequirements}
+Data Requirements:
+{dataRequirements}
 
-            Test Steps that need data:
-            {JsonSerializer.Serialize(testScenario.Steps.Where(s => s.Parameters.Any() || s.StepData.Any()), new JsonSerializerOptions { WriteIndented = true })}
+Test Steps that need data:
+{JsonSerializer.Serialize(testScenario.Steps.Where(s => s.Parameters.Any() || s.StepData.Any()), new JsonSerializerOptions { WriteIndented = true })}
 
-            Generate realistic test data that covers:
-            - Valid data scenarios
-            - Edge cases
-            - Invalid data for negative testing
+Generate realistic test data that covers:
+- Valid data scenarios
+- Edge cases
+- Invalid data for negative testing
 
-            Return the data as a JSON object with key-value pairs where keys are parameter names and values are the test data values.
-            """;
+Return the data as a JSON object with key-value pairs where keys are parameter names and values are the test data values.";
     }
 
     private string BuildOptimizationPrompt(TestScenario scenario)
     {
-        return $"""
-            Optimize the following test scenario for better performance, reliability, and maintainability:
+        return $@"Optimize the following test scenario for better performance, reliability, and maintainability:
 
-            Current Scenario:
-            {JsonSerializer.Serialize(scenario, new JsonSerializerOptions { WriteIndented = true })}
+Current Scenario:
+{JsonSerializer.Serialize(scenario, new JsonSerializerOptions { WriteIndented = true })}
 
-            Please optimize:
-            1. Step ordering and dependencies
-            2. Wait times and timeouts
-            3. Assertions and validations
-            4. Error handling
-            5. Parallel execution opportunities
+Please optimize:
+1. Step ordering and dependencies
+2. Wait times and timeouts
+3. Assertions and validations
+4. Error handling
+5. Parallel execution opportunities
 
-            Return the optimized scenario in the same JSON format.
-            """;
+Return the optimized scenario in the same JSON format.";
     }
 
     private string BuildAdditionalTestSuggestionPrompt(List<TestScenario> existingScenarios, string projectContext)
@@ -391,49 +381,45 @@ public class OpenAILLMService : ILLMService
         var scenarioSummaries = existingScenarios.Select(s => new { s.Title, s.Type, s.Description }).Take(10);
         var summariesJson = JsonSerializer.Serialize(scenarioSummaries, new JsonSerializerOptions { WriteIndented = true });
 
-        return $"""
-            Based on the following existing test scenarios and project context, suggest additional test scenarios that would improve test coverage:
+        return $@"Based on the following existing test scenarios and project context, suggest additional test scenarios that would improve test coverage:
 
-            Project Context: {projectContext}
+Project Context: {projectContext}
 
-            Existing Test Scenarios:
-            {summariesJson}
+Existing Test Scenarios:
+{summariesJson}
 
-            Please identify gaps in test coverage and suggest 3-5 additional test scenarios that would provide value. Focus on:
-            - Edge cases not covered
-            - Integration scenarios
-            - Error handling paths
-            - Performance considerations
-            - Security aspects
+Please identify gaps in test coverage and suggest 3-5 additional test scenarios that would provide value. Focus on:
+- Edge cases not covered
+- Integration scenarios
+- Error handling paths
+- Performance considerations
+- Security aspects
 
-            Return as an array of test scenario objects in the same format as the test generation prompt.
-            """;
+Return as an array of test scenario objects in the same format as the test generation prompt.";
     }
 
     private string BuildValidationPrompt(TestScenario scenario)
     {
-        return $"""
-            Validate the quality and completeness of this test scenario:
+        return $@"Validate the quality and completeness of this test scenario:
 
-            {JsonSerializer.Serialize(scenario, new JsonSerializerOptions { WriteIndented = true })}
+{JsonSerializer.Serialize(scenario, new JsonSerializerOptions { WriteIndented = true })}
 
-            Evaluate:
-            1. Completeness of test coverage
-            2. Quality of test steps
-            3. Assertion adequacy
-            4. Maintainability factors
-            5. Potential reliability issues
+Evaluate:
+1. Completeness of test coverage
+2. Quality of test steps
+3. Assertion adequacy
+4. Maintainability factors
+5. Potential reliability issues
 
-            Return a JSON object with:
-            {{
-                "isValid": true/false,
-                "qualityScore": 0-100,
-                "issues": ["issue1", "issue2"],
-                "suggestions": ["suggestion1", "suggestion2"],
-                "missingCoverage": ["area1", "area2"],
-                "recommendedAssertions": ["assertion1", "assertion2"]
-            }}
-            """;
+Return a JSON object with:
+{{
+    ""isValid"": true/false,
+    ""qualityScore"": 0-100,
+    ""issues"": [""issue1"", ""issue2""],
+    ""suggestions"": [""suggestion1"", ""suggestion2""],
+    ""missingCoverage"": [""area1"", ""area2""],
+    ""recommendedAssertions"": [""assertion1"", ""assertion2""]
+}}";
     }
 
     private TestScenario ParseTestScenarioFromResponse(string response, string originalUserStory)
@@ -450,7 +436,7 @@ public class OpenAILLMService : ILLMService
                 OriginalUserStory = originalUserStory,
                 Type = Enum.Parse<TestType>(root.GetProperty("type").GetString() ?? "Mixed"),
                 Status = TestStatus.Generated,
-                Priority = root.TryGetProperty("priority", out var priority) ? 
+                Priority = root.TryGetProperty("priority", out var priority) ?
                     Enum.Parse<TestPriority>(priority.GetString() ?? "Medium") : TestPriority.Medium
             };
 
@@ -524,7 +510,7 @@ public class OpenAILLMService : ILLMService
         }
 
         // Parse timeout
-        if (stepElement.TryGetProperty("timeout", out var timeoutElement) && 
+        if (stepElement.TryGetProperty("timeout", out var timeoutElement) &&
             TimeSpan.TryParse(timeoutElement.GetString(), out var timeout))
         {
             step.Timeout = timeout;
@@ -595,7 +581,7 @@ public class OpenAILLMService : ILLMService
             optimizedScenario.CreatedAt = originalScenario.CreatedAt;
             optimizedScenario.CreatedBy = originalScenario.CreatedBy;
             optimizedScenario.UpdatedAt = DateTime.UtcNow;
-            
+
             return optimizedScenario;
         }
         catch (Exception ex)

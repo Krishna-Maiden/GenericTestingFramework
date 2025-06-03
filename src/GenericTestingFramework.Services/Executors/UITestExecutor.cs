@@ -6,6 +6,7 @@ using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Edge;
 using OpenQA.Selenium.Support.UI;
+using OpenQA.Selenium.Interactions;
 using SeleniumExtras.WaitHelpers;
 using System.Drawing;
 
@@ -79,7 +80,7 @@ public class UITestExecutor : BaseTestExecutor, ITestExecutor
             }
 
             result.Complete();
-            _logger.LogInformation("UI test execution completed for scenario {ScenarioId}. Passed: {Passed}", 
+            _logger.LogInformation("UI test execution completed for scenario {ScenarioId}. Passed: {Passed}",
                 scenario.Id, result.Passed);
         }
         catch (OperationCanceledException)
@@ -172,10 +173,10 @@ public class UITestExecutor : BaseTestExecutor, ITestExecutor
             // Test WebDriver initialization
             var options = CreateChromeOptions();
             using var driver = new ChromeDriver(options);
-            
+
             // Test basic navigation
             driver.Navigate().GoToUrl("about:blank");
-            
+
             result.IsHealthy = true;
             result.Message = "UI Test Executor is healthy";
         }
@@ -203,7 +204,7 @@ public class UITestExecutor : BaseTestExecutor, ITestExecutor
             // Set implicit wait
             _driver.Manage().Timeouts().ImplicitWait = TimeSpan.FromSeconds(_configuration.ImplicitWaitSeconds);
 
-            _logger.LogInformation("UI Test Executor initialized with browser: {Browser}, headless: {Headless}", 
+            _logger.LogInformation("UI Test Executor initialized with browser: {Browser}, headless: {Headless}",
                 browserType, headless);
 
             return await Task.FromResult(true);
@@ -343,12 +344,14 @@ public class UITestExecutor : BaseTestExecutor, ITestExecutor
                 StackTrace = ex.StackTrace
             };
             stepResult.Complete(false, stepResult.Message);
-            
+
             _logger.LogError(ex, "UI step execution failed: {Action} on {Target}", step.Action, step.Target);
         }
 
         return stepResult;
     }
+
+    #region UI Action Implementations
 
     private async Task ExecuteNavigate(TestStep step, StepResult stepResult)
     {
@@ -360,7 +363,7 @@ public class UITestExecutor : BaseTestExecutor, ITestExecutor
         }
 
         var url = step.Target;
-        
+
         // Handle relative URLs
         if (!Uri.IsWellFormedUriString(url, UriKind.Absolute))
         {
@@ -372,14 +375,14 @@ public class UITestExecutor : BaseTestExecutor, ITestExecutor
         }
 
         _driver.Navigate().GoToUrl(url);
-        
+
         // Wait for page load
         await WaitForPageLoad();
-        
+
         stepResult.Passed = true;
         stepResult.Message = $"Successfully navigated to {url}";
         stepResult.ActualResult = _driver.Url;
-        
+
         await Task.CompletedTask;
     }
 
@@ -395,13 +398,73 @@ public class UITestExecutor : BaseTestExecutor, ITestExecutor
 
         // Wait for element to be clickable
         _wait?.Until(ExpectedConditions.ElementToBeClickable(element));
-        
+
         element.Click();
-        
+
         stepResult.Passed = true;
         stepResult.Message = $"Successfully clicked element: {step.Target}";
         stepResult.ActualResult = "Element clicked";
-        
+
+        await Task.CompletedTask;
+    }
+
+    private async Task ExecuteDoubleClick(TestStep step, StepResult stepResult)
+    {
+        var element = await FindElement(step.Target, step.Timeout);
+        if (element == null)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = $"Element not found: {step.Target}";
+            return;
+        }
+
+        var actions = new Actions(_driver);
+        actions.DoubleClick(element).Perform();
+
+        stepResult.Passed = true;
+        stepResult.Message = $"Successfully double-clicked element: {step.Target}";
+        stepResult.ActualResult = "Element double-clicked";
+
+        await Task.CompletedTask;
+    }
+
+    private async Task ExecuteRightClick(TestStep step, StepResult stepResult)
+    {
+        var element = await FindElement(step.Target, step.Timeout);
+        if (element == null)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = $"Element not found: {step.Target}";
+            return;
+        }
+
+        var actions = new Actions(_driver);
+        actions.ContextClick(element).Perform();
+
+        stepResult.Passed = true;
+        stepResult.Message = $"Successfully right-clicked element: {step.Target}";
+        stepResult.ActualResult = "Element right-clicked";
+
+        await Task.CompletedTask;
+    }
+
+    private async Task ExecuteHover(TestStep step, StepResult stepResult)
+    {
+        var element = await FindElement(step.Target, step.Timeout);
+        if (element == null)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = $"Element not found: {step.Target}";
+            return;
+        }
+
+        var actions = new Actions(_driver);
+        actions.MoveToElement(element).Perform();
+
+        stepResult.Passed = true;
+        stepResult.Message = $"Successfully hovered over element: {step.Target}";
+        stepResult.ActualResult = "Element hovered";
+
         await Task.CompletedTask;
     }
 
@@ -416,7 +479,7 @@ public class UITestExecutor : BaseTestExecutor, ITestExecutor
         }
 
         var text = step.GetParameterValue("value")?.ToString() ?? step.GetParameterValue("text")?.ToString() ?? "";
-        
+
         // Clear existing text if specified
         var clearFirst = step.GetParameterValue("clearFirst")?.ToString()?.ToLowerInvariant() == "true";
         if (clearFirst)
@@ -425,11 +488,266 @@ public class UITestExecutor : BaseTestExecutor, ITestExecutor
         }
 
         element.SendKeys(text);
-        
+
         stepResult.Passed = true;
         stepResult.Message = $"Successfully entered text into element: {step.Target}";
         stepResult.ActualResult = $"Text entered: {text}";
-        
+
+        await Task.CompletedTask;
+    }
+
+    private async Task ExecuteClearText(TestStep step, StepResult stepResult)
+    {
+        var element = await FindElement(step.Target, step.Timeout);
+        if (element == null)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = $"Element not found: {step.Target}";
+            return;
+        }
+
+        element.Clear();
+
+        stepResult.Passed = true;
+        stepResult.Message = $"Successfully cleared text from element: {step.Target}";
+        stepResult.ActualResult = "Text cleared";
+
+        await Task.CompletedTask;
+    }
+
+    private async Task ExecuteSelectOption(TestStep step, StepResult stepResult)
+    {
+        var element = await FindElement(step.Target, step.Timeout);
+        if (element == null)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = $"Element not found: {step.Target}";
+            return;
+        }
+
+        var optionValue = step.GetParameterValue("option")?.ToString() ?? step.GetParameterValue("value")?.ToString() ?? "";
+        var selectMethod = step.GetParameterValue("method")?.ToString()?.ToLowerInvariant() ?? "text";
+
+        var select = new SelectElement(element);
+
+        switch (selectMethod)
+        {
+            case "value":
+                select.SelectByValue(optionValue);
+                break;
+            case "index":
+                if (int.TryParse(optionValue, out var index))
+                    select.SelectByIndex(index);
+                else
+                    throw new ArgumentException($"Invalid index value: {optionValue}");
+                break;
+            default: // text
+                select.SelectByText(optionValue);
+                break;
+        }
+
+        stepResult.Passed = true;
+        stepResult.Message = $"Successfully selected option '{optionValue}' in element: {step.Target}";
+        stepResult.ActualResult = $"Option selected: {optionValue}";
+
+        await Task.CompletedTask;
+    }
+
+    private async Task ExecuteSelectCheckbox(TestStep step, StepResult stepResult)
+    {
+        var element = await FindElement(step.Target, step.Timeout);
+        if (element == null)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = $"Element not found: {step.Target}";
+            return;
+        }
+
+        var shouldCheck = step.GetParameterValue("checked")?.ToString()?.ToLowerInvariant() != "false";
+        var isCurrentlyChecked = element.Selected;
+
+        if (shouldCheck && !isCurrentlyChecked)
+        {
+            element.Click();
+        }
+        else if (!shouldCheck && isCurrentlyChecked)
+        {
+            element.Click();
+        }
+
+        stepResult.Passed = true;
+        stepResult.Message = $"Successfully {(shouldCheck ? "checked" : "unchecked")} checkbox: {step.Target}";
+        stepResult.ActualResult = $"Checkbox {(shouldCheck ? "checked" : "unchecked")}";
+
+        await Task.CompletedTask;
+    }
+
+    private async Task ExecuteUploadFile(TestStep step, StepResult stepResult)
+    {
+        var element = await FindElement(step.Target, step.Timeout);
+        if (element == null)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = $"Element not found: {step.Target}";
+            return;
+        }
+
+        var filePath = step.GetParameterValue("filePath")?.ToString() ?? step.GetParameterValue("file")?.ToString() ?? "";
+
+        if (!File.Exists(filePath))
+        {
+            stepResult.Passed = false;
+            stepResult.Message = $"File not found: {filePath}";
+            return;
+        }
+
+        element.SendKeys(filePath);
+
+        stepResult.Passed = true;
+        stepResult.Message = $"Successfully uploaded file: {filePath}";
+        stepResult.ActualResult = $"File uploaded: {filePath}";
+
+        await Task.CompletedTask;
+    }
+
+    private async Task ExecuteSwitchFrame(TestStep step, StepResult stepResult)
+    {
+        if (_driver == null)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = "WebDriver not initialized";
+            return;
+        }
+
+        var frameIdentifier = step.Target;
+
+        try
+        {
+            if (int.TryParse(frameIdentifier, out var frameIndex))
+            {
+                _driver.SwitchTo().Frame(frameIndex);
+            }
+            else if (frameIdentifier.ToLowerInvariant() == "default")
+            {
+                _driver.SwitchTo().DefaultContent();
+            }
+            else
+            {
+                var frameElement = await FindElement(frameIdentifier, step.Timeout);
+                if (frameElement != null)
+                {
+                    _driver.SwitchTo().Frame(frameElement);
+                }
+                else
+                {
+                    _driver.SwitchTo().Frame(frameIdentifier);
+                }
+            }
+
+            stepResult.Passed = true;
+            stepResult.Message = $"Successfully switched to frame: {frameIdentifier}";
+            stepResult.ActualResult = $"Frame switched: {frameIdentifier}";
+        }
+        catch (Exception ex)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = $"Failed to switch to frame: {ex.Message}";
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private async Task ExecuteSwitchWindow(TestStep step, StepResult stepResult)
+    {
+        if (_driver == null)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = "WebDriver not initialized";
+            return;
+        }
+
+        var windowIdentifier = step.Target;
+
+        try
+        {
+            if (int.TryParse(windowIdentifier, out var windowIndex))
+            {
+                var handles = _driver.WindowHandles;
+                if (windowIndex < handles.Count)
+                {
+                    _driver.SwitchTo().Window(handles[windowIndex]);
+                }
+                else
+                {
+                    throw new ArgumentException($"Window index {windowIndex} out of range");
+                }
+            }
+            else if (windowIdentifier.ToLowerInvariant() == "new" || windowIdentifier.ToLowerInvariant() == "latest")
+            {
+                var handles = _driver.WindowHandles;
+                _driver.SwitchTo().Window(handles.Last());
+            }
+            else
+            {
+                _driver.SwitchTo().Window(windowIdentifier);
+            }
+
+            stepResult.Passed = true;
+            stepResult.Message = $"Successfully switched to window: {windowIdentifier}";
+            stepResult.ActualResult = $"Window switched: {windowIdentifier}";
+        }
+        catch (Exception ex)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = $"Failed to switch to window: {ex.Message}";
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private async Task ExecuteScroll(TestStep step, StepResult stepResult)
+    {
+        if (_driver == null)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = "WebDriver not initialized";
+            return;
+        }
+
+        var scrollDirection = step.GetParameterValue("direction")?.ToString()?.ToLowerInvariant() ?? "down";
+        var scrollAmount = step.GetParameterValue("amount")?.ToString() ?? "500";
+
+        var jsExecutor = (IJavaScriptExecutor)_driver;
+
+        var script = scrollDirection switch
+        {
+            "up" => $"window.scrollBy(0, -{scrollAmount});",
+            "down" => $"window.scrollBy(0, {scrollAmount});",
+            "left" => $"window.scrollBy(-{scrollAmount}, 0);",
+            "right" => $"window.scrollBy({scrollAmount}, 0);",
+            "top" => "window.scrollTo(0, 0);",
+            "bottom" => "window.scrollTo(0, document.body.scrollHeight);",
+            _ => $"window.scrollBy(0, {scrollAmount});"
+        };
+
+        // If target is specified, scroll to element
+        if (!string.IsNullOrEmpty(step.Target) && step.Target != "page")
+        {
+            var element = await FindElement(step.Target, step.Timeout);
+            if (element != null)
+            {
+                jsExecutor.ExecuteScript("arguments[0].scrollIntoView(true);", element);
+            }
+        }
+        else
+        {
+            jsExecutor.ExecuteScript(script);
+        }
+
+        stepResult.Passed = true;
+        stepResult.Message = $"Successfully scrolled {scrollDirection}";
+        stepResult.ActualResult = $"Scrolled {scrollDirection} by {scrollAmount}";
+
         await Task.CompletedTask;
     }
 
@@ -445,9 +763,9 @@ public class UITestExecutor : BaseTestExecutor, ITestExecutor
 
         var expectedText = step.GetParameterValue("expected")?.ToString() ?? step.ExpectedResult;
         var actualText = element.Text;
-        
+
         var verificationMode = step.GetParameterValue("mode")?.ToString()?.ToLowerInvariant() ?? "equals";
-        
+
         bool textMatches = verificationMode switch
         {
             "contains" => actualText.Contains(expectedText, StringComparison.OrdinalIgnoreCase),
@@ -458,23 +776,269 @@ public class UITestExecutor : BaseTestExecutor, ITestExecutor
         };
 
         stepResult.Passed = textMatches;
-        stepResult.Message = textMatches ? 
-            $"Text verification passed for element: {step.Target}" : 
+        stepResult.Message = textMatches ?
+            $"Text verification passed for element: {step.Target}" :
             $"Text verification failed. Expected: '{expectedText}', Actual: '{actualText}'";
         stepResult.ActualResult = actualText;
-        
+
         await Task.CompletedTask;
     }
 
-    // Additional UI action implementations would continue here...
-    // For brevity, I'm including key methods. The complete implementation would include all UI actions.
+    private async Task ExecuteVerifyElement(TestStep step, StepResult stepResult)
+    {
+        var verificationMode = step.GetParameterValue("mode")?.ToString()?.ToLowerInvariant() ?? "exists";
+
+        var element = await FindElement(step.Target, step.Timeout);
+
+        bool verificationPassed = verificationMode switch
+        {
+            "exists" => element != null,
+            "visible" => element != null && element.Displayed,
+            "enabled" => element != null && element.Enabled,
+            "selected" => element != null && element.Selected,
+            "not_exists" => element == null,
+            "not_visible" => element == null || !element.Displayed,
+            "not_enabled" => element == null || !element.Enabled,
+            "not_selected" => element == null || !element.Selected,
+            _ => element != null
+        };
+
+        stepResult.Passed = verificationPassed;
+        stepResult.Message = verificationPassed ?
+            $"Element verification passed: {verificationMode} for {step.Target}" :
+            $"Element verification failed: {verificationMode} for {step.Target}";
+        stepResult.ActualResult = element != null ?
+            $"Element found, Displayed: {element.Displayed}, Enabled: {element.Enabled}" :
+            "Element not found";
+
+        await Task.CompletedTask;
+    }
+
+    private async Task ExecuteVerifyAttribute(TestStep step, StepResult stepResult)
+    {
+        var element = await FindElement(step.Target, step.Timeout);
+        if (element == null)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = $"Element not found: {step.Target}";
+            return;
+        }
+
+        var attributeName = step.GetParameterValue("attribute")?.ToString() ?? step.GetParameterValue("name")?.ToString() ?? "";
+        var expectedValue = step.GetParameterValue("expected")?.ToString() ?? step.ExpectedResult;
+
+        if (string.IsNullOrEmpty(attributeName))
+        {
+            stepResult.Passed = false;
+            stepResult.Message = "Attribute name is required for attribute verification";
+            return;
+        }
+
+        var actualValue = element.GetAttribute(attributeName) ?? "";
+        var verificationMode = step.GetParameterValue("mode")?.ToString()?.ToLowerInvariant() ?? "equals";
+
+        bool attributeMatches = verificationMode switch
+        {
+            "contains" => actualValue.Contains(expectedValue, StringComparison.OrdinalIgnoreCase),
+            "startswith" => actualValue.StartsWith(expectedValue, StringComparison.OrdinalIgnoreCase),
+            "endswith" => actualValue.EndsWith(expectedValue, StringComparison.OrdinalIgnoreCase),
+            "exists" => !string.IsNullOrEmpty(actualValue),
+            "not_exists" => string.IsNullOrEmpty(actualValue),
+            _ => string.Equals(actualValue, expectedValue, StringComparison.OrdinalIgnoreCase)
+        };
+
+        stepResult.Passed = attributeMatches;
+        stepResult.Message = attributeMatches ?
+            $"Attribute verification passed for '{attributeName}' on {step.Target}" :
+            $"Attribute verification failed for '{attributeName}'. Expected: '{expectedValue}', Actual: '{actualValue}'";
+        stepResult.ActualResult = actualValue;
+
+        await Task.CompletedTask;
+    }
+
+    private async Task ExecuteWait(TestStep step, StepResult stepResult)
+    {
+        var waitType = step.GetParameterValue("type")?.ToString()?.ToLowerInvariant() ?? "duration";
+        var duration = step.GetParameterValue("duration")?.ToString() ?? "1000";
+
+        try
+        {
+            switch (waitType)
+            {
+                case "duration":
+                    if (int.TryParse(duration, out var milliseconds))
+                    {
+                        await Task.Delay(milliseconds);
+                        stepResult.Passed = true;
+                        stepResult.Message = $"Successfully waited for {milliseconds}ms";
+                    }
+                    else
+                    {
+                        stepResult.Passed = false;
+                        stepResult.Message = $"Invalid duration: {duration}";
+                    }
+                    break;
+
+                case "element":
+                    var element = await FindElement(step.Target, step.Timeout ?? TimeSpan.FromSeconds(30));
+                    stepResult.Passed = element != null;
+                    stepResult.Message = stepResult.Passed ?
+                        $"Element appeared: {step.Target}" :
+                        $"Element did not appear within timeout: {step.Target}";
+                    break;
+
+                case "page_load":
+                    await WaitForPageLoad();
+                    stepResult.Passed = true;
+                    stepResult.Message = "Page load completed";
+                    break;
+
+                default:
+                    stepResult.Passed = false;
+                    stepResult.Message = $"Unknown wait type: {waitType}";
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = $"Wait failed: {ex.Message}";
+        }
+
+        stepResult.ActualResult = $"Wait type: {waitType}, Duration: {duration}";
+        await Task.CompletedTask;
+    }
+
+    private async Task ExecuteTakeScreenshot(TestStep step, StepResult stepResult)
+    {
+        try
+        {
+            var fileName = step.GetParameterValue("fileName")?.ToString() ??
+                          $"screenshot_{DateTime.UtcNow:yyyyMMdd_HHmmss}";
+
+            var screenshotPath = await CaptureScreenshot(fileName);
+
+            if (!string.IsNullOrEmpty(screenshotPath))
+            {
+                stepResult.Passed = true;
+                stepResult.Message = $"Screenshot captured: {screenshotPath}";
+                stepResult.ScreenshotPath = screenshotPath;
+                stepResult.ActualResult = screenshotPath;
+            }
+            else
+            {
+                stepResult.Passed = false;
+                stepResult.Message = "Failed to capture screenshot";
+            }
+        }
+        catch (Exception ex)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = $"Screenshot failed: {ex.Message}";
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private async Task ExecuteScript(TestStep step, StepResult stepResult)
+    {
+        if (_driver == null)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = "WebDriver not initialized";
+            return;
+        }
+
+        var script = step.GetParameterValue("script")?.ToString() ?? step.Target;
+        var arguments = step.GetParameterValue("arguments")?.ToString();
+
+        try
+        {
+            var jsExecutor = (IJavaScriptExecutor)_driver;
+            object result;
+
+            if (!string.IsNullOrEmpty(arguments))
+            {
+                // Parse arguments if provided (simple comma-separated values)
+                var args = arguments.Split(',').Select(arg => arg.Trim()).ToArray();
+                result = jsExecutor.ExecuteScript(script, args);
+            }
+            else
+            {
+                result = jsExecutor.ExecuteScript(script);
+            }
+
+            stepResult.Passed = true;
+            stepResult.Message = "JavaScript executed successfully";
+            stepResult.ActualResult = result?.ToString() ?? "null";
+        }
+        catch (Exception ex)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = $"JavaScript execution failed: {ex.Message}";
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private async Task ExecuteDragDrop(TestStep step, StepResult stepResult)
+    {
+        var sourceSelector = step.Target;
+        var targetSelector = step.GetParameterValue("target")?.ToString() ??
+                            step.GetParameterValue("destination")?.ToString() ?? "";
+
+        if (string.IsNullOrEmpty(targetSelector))
+        {
+            stepResult.Passed = false;
+            stepResult.Message = "Target/destination parameter is required for drag and drop";
+            return;
+        }
+
+        var sourceElement = await FindElement(sourceSelector, step.Timeout);
+        var targetElement = await FindElement(targetSelector, step.Timeout);
+
+        if (sourceElement == null)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = $"Source element not found: {sourceSelector}";
+            return;
+        }
+
+        if (targetElement == null)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = $"Target element not found: {targetSelector}";
+            return;
+        }
+
+        try
+        {
+            var actions = new Actions(_driver);
+            actions.DragAndDrop(sourceElement, targetElement).Perform();
+
+            stepResult.Passed = true;
+            stepResult.Message = $"Successfully dragged from {sourceSelector} to {targetSelector}";
+            stepResult.ActualResult = $"Drag and drop completed";
+        }
+        catch (Exception ex)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = $"Drag and drop failed: {ex.Message}";
+        }
+
+        await Task.CompletedTask;
+    }
+
+    #endregion
+
+    #region Helper Methods
 
     private async Task<IWebElement?> FindElement(string locator, TimeSpan? timeout = null)
     {
         if (_driver == null) return null;
 
         var wait = timeout.HasValue ? new WebDriverWait(_driver, timeout.Value) : _wait;
-        
+
         try
         {
             By by = locator switch
@@ -531,7 +1095,7 @@ public class UITestExecutor : BaseTestExecutor, ITestExecutor
     private ChromeDriver CreateChromeDriver(bool headless, string windowSize)
     {
         var options = CreateChromeOptions();
-        
+
         if (headless)
         {
             options.AddArgument("--headless");
@@ -560,7 +1124,7 @@ public class UITestExecutor : BaseTestExecutor, ITestExecutor
     private FirefoxDriver CreateFirefoxDriver(bool headless, string windowSize)
     {
         var options = new FirefoxOptions();
-        
+
         if (headless)
         {
             options.AddArgument("--headless");
@@ -572,7 +1136,7 @@ public class UITestExecutor : BaseTestExecutor, ITestExecutor
     private EdgeDriver CreateEdgeDriver(bool headless, string windowSize)
     {
         var options = new EdgeOptions();
-        
+
         if (headless)
         {
             options.AddArgument("--headless");
@@ -590,10 +1154,10 @@ public class UITestExecutor : BaseTestExecutor, ITestExecutor
         {
             var screenshot = screenshotDriver.GetScreenshot();
             var filePath = Path.Combine(_configuration.ScreenshotPath, $"{fileName}.png");
-            
+
             Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
             screenshot.SaveAsFile(filePath);
-            
+
             return filePath;
         }
         catch (Exception ex)
@@ -610,7 +1174,7 @@ public class UITestExecutor : BaseTestExecutor, ITestExecutor
         try
         {
             var wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(30));
-            await Task.Run(() => wait.Until(driver => 
+            await Task.Run(() => wait.Until(driver =>
                 ((IJavaScriptExecutor)driver).ExecuteScript("return document.readyState").Equals("complete")));
         }
         catch (Exception ex)
@@ -619,7 +1183,7 @@ public class UITestExecutor : BaseTestExecutor, ITestExecutor
         }
     }
 
-    // Additional helper methods would be implemented here...
+    #endregion
 }
 
 /// <summary>

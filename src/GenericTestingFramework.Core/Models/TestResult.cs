@@ -53,7 +53,7 @@ public class TestResult
     /// Machine or agent that executed the test
     /// </summary>
     [StringLength(100)]
-    public string ExecutedBy { get; set; } = Environment.MachineName;
+    public string ExecutedBy { get; set; } = System.Environment.MachineName;
 
     /// <summary>
     /// Results of individual test steps

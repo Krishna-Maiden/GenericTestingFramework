@@ -17,7 +17,7 @@ builder.Services.AddSwaggerGen(c =>
         Version = "v1",
         Description = "AI-powered generic testing framework for UI and API automation with natural language test generation"
     });
-    c.EnableAnnotations();
+    //c.EnableAnnotations();
 });
 
 // Configure CORS
