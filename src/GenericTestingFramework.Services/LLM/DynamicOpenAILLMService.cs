@@ -91,12 +91,14 @@ public class DynamicOpenAILLMService : ILLMService
     {
         var steps = new List<ParsedStep>();
 
-        // Method 1: Parse numbered steps (1., 2., 3., etc.)
+        // Method 1: Parse numbered steps (1., 2., 3., etc.) - PRIORITY METHOD
         var numberedPattern = @"(\d+)\.\s*([^0-9]+?)(?=\d+\.|$)";
         var numberedMatches = Regex.Matches(userStory, numberedPattern, RegexOptions.Singleline | RegexOptions.IgnoreCase);
 
         if (numberedMatches.Count > 0)
         {
+            _logger.LogInformation($"🔍 Found {numberedMatches.Count} numbered steps in user story");
+
             foreach (Match match in numberedMatches)
             {
                 var stepNumber = int.Parse(match.Groups[1].Value);
@@ -104,64 +106,79 @@ public class DynamicOpenAILLMService : ILLMService
 
                 if (!string.IsNullOrEmpty(stepText))
                 {
-                    steps.Add(new ParsedStep
+                    var parsedStep = new ParsedStep
                     {
                         StepNumber = stepNumber,
                         StepText = stepText,
                         ActionType = DetermineActionType(stepText),
                         TargetElement = ExtractTarget(stepText),
                         RequiredData = ExtractRequiredData(stepText)
-                    });
+                    };
+
+                    // CRITICAL FIX: For authentication steps, ensure we extract credentials from the FULL step text
+                    if (parsedStep.ActionType == "authentication")
+                    {
+                        // Re-extract credentials from the complete step text to ensure we get username/password
+                        var stepCredentials = ExtractCredentials(stepText);
+                        if (stepCredentials.Any())
+                        {
+                            parsedStep.RequiredData = stepCredentials;
+                        }
+                    }
+
+                    steps.Add(parsedStep);
+                    _logger.LogInformation($"   Step {stepNumber}: {parsedStep.ActionType} - {parsedStep.StepText.Substring(0, Math.Min(50, parsedStep.StepText.Length))}...");
                 }
             }
+
+            return steps.OrderBy(s => s.StepNumber).ToList();
         }
-        else
+
+        // Method 2: Fallback parsing (only if no numbered steps found)
+        _logger.LogInformation("🔄 No numbered steps found, using fallback parsing");
+
+        var separatorPatterns = new[]
         {
-            // Method 2: Parse by common separators and phrases
-            var separatorPatterns = new[]
-            {
-                @"(?:after|then|next|finally)\s+([^.]+)",
-                @"(?:and then|and|,)\s+([^.]+)",
-                @"(?:so I can|so that|in order to)\s+([^.]+)"
-            };
+            @"(?:after|then|next|finally)\s+([^.]+)",
+            @"(?:and then|and|,)\s+([^.]+)",
+            @"(?:so I can|so that|in order to)\s+([^.]+)"
+        };
 
-            var allText = userStory;
-            var stepNum = 1;
+        var stepNum = 1;
 
-            // First, handle the main action (usually login/access)
-            var mainActionPattern = @"(.*?)\s+(?:so I can|so that|in order to|then|after|and)";
-            var mainMatch = Regex.Match(userStory, mainActionPattern, RegexOptions.IgnoreCase);
-            if (mainMatch.Success)
+        // First, handle the main action (usually login/access)
+        var mainActionPattern = @"(.*?)\s+(?:so I can|so that|in order to|then|after|and)";
+        var mainMatch = Regex.Match(userStory, mainActionPattern, RegexOptions.IgnoreCase);
+        if (mainMatch.Success)
+        {
+            var mainAction = mainMatch.Groups[1].Value.Trim();
+            steps.Add(new ParsedStep
             {
-                var mainAction = mainMatch.Groups[1].Value.Trim();
-                steps.Add(new ParsedStep
+                StepNumber = stepNum++,
+                StepText = mainAction,
+                ActionType = DetermineActionType(mainAction),
+                TargetElement = ExtractTarget(mainAction),
+                RequiredData = ExtractRequiredData(mainAction)
+            });
+        }
+
+        // Then handle additional steps
+        foreach (var pattern in separatorPatterns)
+        {
+            var matches = Regex.Matches(userStory, pattern, RegexOptions.IgnoreCase);
+            foreach (Match match in matches)
+            {
+                var stepText = match.Groups[1].Value.Trim().TrimEnd('.', ',', ';');
+                if (!string.IsNullOrEmpty(stepText) && !steps.Any(s => s.StepText.Contains(stepText, StringComparison.OrdinalIgnoreCase)))
                 {
-                    StepNumber = stepNum++,
-                    StepText = mainAction,
-                    ActionType = DetermineActionType(mainAction),
-                    TargetElement = ExtractTarget(mainAction),
-                    RequiredData = ExtractRequiredData(mainAction)
-                });
-            }
-
-            // Then handle additional steps
-            foreach (var pattern in separatorPatterns)
-            {
-                var matches = Regex.Matches(userStory, pattern, RegexOptions.IgnoreCase);
-                foreach (Match match in matches)
-                {
-                    var stepText = match.Groups[1].Value.Trim().TrimEnd('.', ',', ';');
-                    if (!string.IsNullOrEmpty(stepText) && !steps.Any(s => s.StepText.Contains(stepText, StringComparison.OrdinalIgnoreCase)))
+                    steps.Add(new ParsedStep
                     {
-                        steps.Add(new ParsedStep
-                        {
-                            StepNumber = stepNum++,
-                            StepText = stepText,
-                            ActionType = DetermineActionType(stepText),
-                            TargetElement = ExtractTarget(stepText),
-                            RequiredData = ExtractRequiredData(stepText)
-                        });
-                    }
+                        StepNumber = stepNum++,
+                        StepText = stepText,
+                        ActionType = DetermineActionType(stepText),
+                        TargetElement = ExtractTarget(stepText),
+                        RequiredData = ExtractRequiredData(stepText)
+                    });
                 }
             }
         }
@@ -173,8 +190,14 @@ public class DynamicOpenAILLMService : ILLMService
     {
         var lowerStep = stepText.ToLowerInvariant();
 
-        if (lowerStep.Contains("login") || lowerStep.Contains("sign in") || lowerStep.Contains("authenticate") || lowerStep.Contains("access") && lowerStep.Contains("with"))
+        // ENHANCED: Better authentication detection
+        if ((lowerStep.Contains("login") || lowerStep.Contains("sign in") || lowerStep.Contains("authenticate")) ||
+            (lowerStep.Contains("username") && lowerStep.Contains("password")) ||
+            (lowerStep.Contains("with username:") || lowerStep.Contains("with password:")) ||
+            (lowerStep.Contains("admin") && lowerStep.Contains("access") && (lowerStep.Contains("@") || lowerStep.Contains("password"))))
+        {
             return "authentication";
+        }
 
         if (lowerStep.Contains("select") || lowerStep.Contains("click") || lowerStep.Contains("choose") || lowerStep.Contains("open"))
             return "navigation";
@@ -358,9 +381,19 @@ public class DynamicOpenAILLMService : ILLMService
 
     private void AddComprehensiveAuthenticationSteps(List<TestStep> steps, CompleteUserStoryAnalysis analysis, ref int stepOrder)
     {
+        // Use analysis-wide credentials first, then fall back to individual step credentials
         var credentials = analysis.Credentials;
+
+        // If no credentials in analysis, try to extract from the original story again
+        if (!credentials.Any())
+        {
+            credentials = ExtractCredentials(analysis.OriginalStory);
+        }
+
         var username = credentials.ContainsKey("username") ? credentials["username"] : "admin@example.com";
         var password = credentials.ContainsKey("password") ? credentials["password"] : "Admin@123";
+
+        _logger.LogInformation($"🔐 Adding authentication steps with username: {username} and password: {password}");
 
         // Enter username/email with comprehensive selectors
         steps.Add(new TestStep
@@ -368,7 +401,7 @@ public class DynamicOpenAILLMService : ILLMService
             Id = Guid.NewGuid().ToString(),
             Order = stepOrder++,
             Action = "enter_text",
-            Description = "Enter admin username/email",
+            Description = $"Enter admin username/email: {username}",
             Target = "input[type='email'], input[name*='email'], input[name*='username'], input[name*='user'], input[placeholder*='email'], input[placeholder*='username'], input[placeholder*='user'], #email, #username, #user, .email-input, .username-input, .user-input, [data-testid*='email'], [data-testid*='username'], [data-testid*='user']",
             ExpectedResult = "Username/email entered successfully",
             IsEnabled = true,
@@ -382,7 +415,7 @@ public class DynamicOpenAILLMService : ILLMService
             Id = Guid.NewGuid().ToString(),
             Order = stepOrder++,
             Action = "enter_text",
-            Description = "Enter admin password",
+            Description = $"Enter admin password: {password}",
             Target = "input[type='password'], input[name*='password'], input[name*='pass'], input[placeholder*='password'], input[placeholder*='pass'], #password, #pass, .password-input, .pass-input, [data-testid*='password'], [data-testid*='pass']",
             ExpectedResult = "Password entered successfully",
             IsEnabled = true,
