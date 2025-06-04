@@ -51,14 +51,14 @@ try
     services.AddSingleton(apiTestConfig);
 
     // Add HTTP clients
-    services.AddHttpClient<EnhancedOpenAILLMService>();
+    services.AddHttpClient<DynamicOpenAILLMService>();
     services.AddHttpClient<APITestExecutor>();
 
     // Register document manager
     services.AddSingleton<IDocumentManager, DocumentManager>();
 
     // Register framework services with real OpenAI LLM service
-    services.AddSingleton<ILLMService, EnhancedOpenAILLMService>();
+    services.AddSingleton<ILLMService, DynamicOpenAILLMService>();
     services.AddSingleton<ITestRepository, InMemoryTestRepository>();
 
     // Register test executors

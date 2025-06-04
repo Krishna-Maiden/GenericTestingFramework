@@ -35,6 +35,215 @@ public class EnhancedUITestExecutor : BaseTestExecutor, ITestExecutor
         return testType == TestType.UI || testType == TestType.Mixed;
     }
 
+    // Add this method to your EnhancedUITestExecutor.cs
+
+    /// <summary>
+    /// Smart authentication verification that actually checks for login success/failure
+    /// </summary>
+    private async Task ExecuteVerifyAuthentication(TestStep step, StepResult stepResult)
+    {
+        try
+        {
+            if (_driver == null)
+            {
+                stepResult.Passed = false;
+                stepResult.Message = "WebDriver not initialized";
+                return;
+            }
+
+            _logger.LogDebug("🔍 Performing smart authentication verification");
+
+            var currentUrl = _driver.Url;
+            var pageSource = _driver.PageSource?.ToLowerInvariant() ?? "";
+            var pageTitle = _driver.Title?.ToLowerInvariant() ?? "";
+
+            _logger.LogDebug("Current URL: {Url}", currentUrl);
+            _logger.LogDebug("Page Title: {Title}", _driver.Title);
+
+            // Check for authentication failure indicators first
+            var failureIndicators = new[]
+            {
+            "invalid", "incorrect", "wrong", "error", "failed", "denied",
+            "unauthorized", "forbidden", "bad credentials", "login failed",
+            "authentication failed", "access denied", "invalid username",
+            "invalid password", "wrong password", "user not found",
+            "login error", "signin error", "authentication error"
+        };
+
+            bool hasFailureIndicators = failureIndicators.Any(indicator =>
+                pageSource.Contains(indicator) || pageTitle.Contains(indicator));
+
+            if (hasFailureIndicators)
+            {
+                stepResult.Passed = false;
+                stepResult.Message = "Authentication failed - error messages detected on page";
+                stepResult.ActualResult = "Found authentication failure indicators";
+                _logger.LogWarning("❌ Authentication failure detected on page");
+                return;
+            }
+
+            // Check if still on login page (authentication failed)
+            bool stillOnLoginPage = currentUrl.Contains("login", StringComparison.OrdinalIgnoreCase) ||
+                                   currentUrl.Contains("signin", StringComparison.OrdinalIgnoreCase) ||
+                                   pageSource.Contains("login") && pageSource.Contains("password") ||
+                                   pageTitle.Contains("login") || pageTitle.Contains("sign in");
+
+            if (stillOnLoginPage)
+            {
+                // Double-check by looking for login form elements
+                try
+                {
+                    var loginElements = await Task.FromResult(_driver.FindElements(By.CssSelector(
+                        "input[type='password'], input[name*='password'], .login-form, .signin-form, #loginForm")));
+
+                    if (loginElements.Any(e => e.Displayed))
+                    {
+                        stepResult.Passed = false;
+                        stepResult.Message = "Authentication failed - still on login page with login form visible";
+                        stepResult.ActualResult = $"URL: {currentUrl}, Login elements found: {loginElements.Count}";
+                        _logger.LogWarning("❌ Still on login page - authentication likely failed");
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug("Error checking for login elements: {Error}", ex.Message);
+                }
+            }
+
+            // Check for authentication success indicators
+            var successIndicators = new[]
+            {
+            "dashboard", "welcome", "admin", "profile", "account", "logout", "sign out",
+            "home", "main", "portal", "panel", "workspace", "console"
+        };
+
+            bool hasSuccessIndicators = successIndicators.Any(indicator =>
+                pageSource.Contains(indicator) || pageTitle.Contains(indicator) || currentUrl.Contains(indicator, StringComparison.OrdinalIgnoreCase));
+
+            // Check for common post-login elements
+            var successElements = new List<IWebElement>();
+            var successSelectors = new[]
+            {
+            "a[href*='logout'], a[href*='signout'], .logout, .sign-out, #logout",
+            ".user-menu, .profile-menu, .account-menu, .user-info",
+            ".dashboard, #dashboard, .admin-panel, .main-content",
+            "nav, .navbar, .navigation, .menu-bar",
+            ".welcome, .greeting, .user-welcome"
+        };
+
+            foreach (var selector in successSelectors)
+            {
+                try
+                {
+                    var elements = _driver.FindElements(By.CssSelector(selector));
+                    successElements.AddRange(elements.Where(e => e.Displayed));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug("Error finding success elements with selector '{Selector}': {Error}", selector, ex.Message);
+                }
+            }
+
+            // URL-based success check (not on login page)
+            bool urlIndicatesSuccess = !currentUrl.Contains("login", StringComparison.OrdinalIgnoreCase) &&
+                                      !currentUrl.Contains("signin", StringComparison.OrdinalIgnoreCase) &&
+                                      !currentUrl.Contains("auth", StringComparison.OrdinalIgnoreCase);
+
+            // Determine authentication success
+            bool authenticationSucceeded = (hasSuccessIndicators || successElements.Any() || urlIndicatesSuccess) &&
+                                          !hasFailureIndicators &&
+                                          !stillOnLoginPage;
+
+            if (authenticationSucceeded)
+            {
+                stepResult.Passed = true;
+                stepResult.Message = "Authentication successful - indicators found";
+                stepResult.ActualResult = $"URL: {currentUrl}, Success elements: {successElements.Count}, Success indicators: {hasSuccessIndicators}";
+                _logger.LogInformation("✅ Authentication verification passed");
+            }
+            else
+            {
+                stepResult.Passed = false;
+                stepResult.Message = "Authentication verification failed - no clear success indicators found";
+                stepResult.ActualResult = $"URL: {currentUrl}, Title: {_driver.Title}, Success elements: {successElements.Count}";
+                _logger.LogWarning("❌ Authentication verification failed - unclear if login succeeded");
+            }
+
+            // Log detailed analysis for debugging
+            _logger.LogDebug("Authentication Analysis:");
+            _logger.LogDebug("  URL changed from login: {UrlChanged}", urlIndicatesSuccess);
+            _logger.LogDebug("  Success indicators in content: {HasSuccessIndicators}", hasSuccessIndicators);
+            _logger.LogDebug("  Success elements found: {SuccessElements}", successElements.Count);
+            _logger.LogDebug("  Failure indicators: {HasFailureIndicators}", hasFailureIndicators);
+            _logger.LogDebug("  Still on login page: {StillOnLogin}", stillOnLoginPage);
+
+        }
+        catch (Exception ex)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = $"Authentication verification failed with error: {ex.Message}";
+            _logger.LogError(ex, "Error during authentication verification");
+        }
+
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Verify that authentication actually failed (for negative test cases)
+    /// </summary>
+    private async Task ExecuteVerifyAuthenticationFailure(TestStep step, StepResult stepResult)
+    {
+        try
+        {
+            if (_driver == null)
+            {
+                stepResult.Passed = false;
+                stepResult.Message = "WebDriver not initialized";
+                return;
+            }
+
+            _logger.LogDebug("🔍 Verifying authentication failure");
+
+            var currentUrl = _driver.Url;
+            var pageSource = _driver.PageSource?.ToLowerInvariant() ?? "";
+            var pageTitle = _driver.Title?.ToLowerInvariant() ?? "";
+
+            // Check for failure indicators
+            var failureIndicators = new[]
+            {
+            "invalid", "incorrect", "wrong", "error", "failed", "denied",
+            "unauthorized", "forbidden", "bad credentials", "login failed",
+            "authentication failed", "invalid username", "invalid password"
+        };
+
+            bool hasFailureIndicators = failureIndicators.Any(indicator =>
+                pageSource.Contains(indicator) || pageTitle.Contains(indicator));
+
+            // Check if still on login page
+            bool stillOnLoginPage = currentUrl.Contains("login", StringComparison.OrdinalIgnoreCase) ||
+                                   currentUrl.Contains("signin", StringComparison.OrdinalIgnoreCase) ||
+                                   pageSource.Contains("login") && pageSource.Contains("password");
+
+            // For negative testing, we WANT authentication to fail
+            bool authenticationProperlyFailed = hasFailureIndicators || stillOnLoginPage;
+
+            stepResult.Passed = authenticationProperlyFailed;
+            stepResult.Message = authenticationProperlyFailed ?
+                "Authentication properly failed as expected" :
+                "Authentication did not fail as expected";
+            stepResult.ActualResult = $"URL: {currentUrl}, Failure indicators: {hasFailureIndicators}, On login page: {stillOnLoginPage}";
+
+        }
+        catch (Exception ex)
+        {
+            stepResult.Passed = false;
+            stepResult.Message = $"Authentication failure verification error: {ex.Message}";
+            _logger.LogError(ex, "Error during authentication failure verification");
+        }
+
+        await Task.CompletedTask;
+    }
     public async Task<TestResult> ExecuteTest(TestScenario scenario, CancellationToken cancellationToken = default)
     {
         var result = new TestResult
@@ -1105,4 +1314,7 @@ public class EnhancedUITestExecutor : BaseTestExecutor, ITestExecutor
     }
 
     #endregion
+
+
+
 }
