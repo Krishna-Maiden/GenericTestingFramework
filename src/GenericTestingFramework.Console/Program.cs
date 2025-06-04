@@ -11,8 +11,8 @@ using GenericTestingFramework.Services.Documents;
 using GenericTestingFramework.Services.TestGeneration;
 using GenericTestingFramework.Services.Documents.Models;
 
-Console.WriteLine("🚀 Dynamic Test Generation Framework - Console Application");
-Console.WriteLine("========================================================");
+Console.WriteLine("🚀 Dynamic Test Generation Framework - Console Application (GPT-3.5-Turbo Powered)");
+Console.WriteLine("==================================================================================");
 
 try
 {
@@ -57,8 +57,8 @@ try
     // Register document manager
     services.AddSingleton<IDocumentManager, DocumentManager>();
 
-    // Register framework services with dynamic test generator
-    services.AddSingleton<ILLMService, DynamicTestGenerator>();
+    // Register framework services with real OpenAI LLM service
+    services.AddSingleton<ILLMService, OpenAILLMService>();
     services.AddSingleton<ITestRepository, InMemoryTestRepository>();
 
     // Register test executors
@@ -69,6 +69,35 @@ try
     services.AddTransient<TestAutomationService>();
 
     var serviceProvider = services.BuildServiceProvider();
+
+    // Validate OpenAI configuration
+    var llmConfig = new LLMConfiguration();
+    configuration.GetSection(LLMConfiguration.SectionName).Bind(llmConfig);
+
+    Console.WriteLine("\n🤖 OpenAI GPT-3.5-Turbo Integration Status:");
+    if (!llmConfig.IsValid())
+    {
+        Console.WriteLine("❌ Configuration Issues:");
+        foreach (var error in llmConfig.GetValidationErrors())
+        {
+            Console.WriteLine($"   • {error}");
+        }
+        Console.WriteLine("\n💡 Please check your appsettings.json file");
+    }
+    else if (llmConfig.ApiKey == "YOUR_OPENAI_API_KEY_HERE")
+    {
+        Console.WriteLine("⚠️  API Key Not Configured");
+        Console.WriteLine("   Please update 'ApiKey' in appsettings.json with your actual OpenAI API key");
+        Console.WriteLine("   Get your key from: https://platform.openai.com/api-keys");
+    }
+    else
+    {
+        Console.WriteLine("✅ Configuration Valid");
+        Console.WriteLine($"   Model: {llmConfig.Model}");
+        Console.WriteLine($"   Max Tokens: {llmConfig.MaxTokens}");
+        Console.WriteLine($"   Temperature: {llmConfig.Temperature}");
+    }
+
     var testService = serviceProvider.GetRequiredService<TestAutomationService>();
     var documentManager = serviceProvider.GetRequiredService<IDocumentManager>();
     var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
@@ -167,8 +196,9 @@ try
     Console.WriteLine($"\n📋 Content Preview:");
     Console.WriteLine($"   {preview}");
 
-    // Generate test scenario dynamically
-    Console.WriteLine("\n🔄 Generating test scenario dynamically...");
+    // Generate test scenario dynamically using OpenAI GPT-3.5-Turbo
+    Console.WriteLine("\n🤖 Generating test scenario using OpenAI GPT-3.5-Turbo...");
+    Console.WriteLine("   This may take 5-15 seconds depending on API response time...");
     var scenarioId = await testService.CreateTestFromUserStory(
         document.Content,
         projectId,
@@ -297,12 +327,13 @@ try
     Console.WriteLine("\n🎉 Dynamic Test Generation Completed!");
     Console.WriteLine("\n💡 Framework Features Demonstrated:");
     Console.WriteLine("   ✓ User story file upload and management");
-    Console.WriteLine("   ✓ Dynamic test generation from user stories");
-    Console.WriteLine("   ✓ Automatic analysis of user story content");
+    Console.WriteLine("   ✓ OpenAI GPT-3.5-Turbo powered intelligent test generation");
+    Console.WriteLine("   ✓ Advanced natural language processing of user stories");
     Console.WriteLine("   ✓ Smart extraction of URLs, credentials, and actions");
-    Console.WriteLine("   ✓ Context-aware test step generation");
+    Console.WriteLine("   ✓ Context-aware test step generation with AI");
     Console.WriteLine("   ✓ Real-time test execution with detailed reporting");
     Console.WriteLine("   ✓ Screenshot capture on test failures");
+    Console.WriteLine("   ✓ Comprehensive test result analysis");
 
     logger.LogInformation("Dynamic Test Generation Framework completed successfully");
 }

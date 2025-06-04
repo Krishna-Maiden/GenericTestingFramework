@@ -1,78 +1,63 @@
+using GenericTestingFramework.Services.LLM;
+
 namespace GenericTestingFramework.Services.LLM;
 
 /// <summary>
-/// Configuration options for LLM services
+/// Enhanced configuration for OpenAI LLM service
 /// </summary>
 public class LLMConfiguration
 {
-    /// <summary>
-    /// Configuration section name
-    /// </summary>
     public const string SectionName = "LLM";
 
     /// <summary>
-    /// OpenAI API key
+    /// OpenAI API Key
     /// </summary>
     public string ApiKey { get; set; } = string.Empty;
 
     /// <summary>
-    /// Model to use (gpt-4, gpt-3.5-turbo, etc.)
+    /// OpenAI Model to use (e.g., gpt-3.5-turbo, gpt-4)
     /// </summary>
-    public string Model { get; set; } = "gpt-4";
+    public string Model { get; set; } = "gpt-3.5-turbo";
 
     /// <summary>
-    /// Maximum tokens for response
+    /// Maximum tokens for the response
     /// </summary>
-    public int MaxTokens { get; set; } = 4000;
+    public int MaxTokens { get; set; } = 3000;
 
     /// <summary>
-    /// Temperature for response creativity (0.0 - 2.0)
+    /// Temperature for response creativity (0.0 to 2.0)
     /// </summary>
     public double Temperature { get; set; } = 0.7;
 
     /// <summary>
-    /// Top-p sampling parameter
+    /// Top-p for nucleus sampling
     /// </summary>
     public double TopP { get; set; } = 1.0;
 
     /// <summary>
-    /// Request timeout in seconds
+    /// Timeout for API calls in seconds
     /// </summary>
-    public int TimeoutSeconds { get; set; } = 300;
+    public int TimeoutSeconds { get; set; } = 120;
 
     /// <summary>
-    /// Maximum retry attempts
+    /// Maximum number of retries for failed requests
     /// </summary>
     public int MaxRetries { get; set; } = 3;
 
     /// <summary>
-    /// Retry delay in milliseconds
+    /// Delay between retries in milliseconds
     /// </summary>
     public int RetryDelayMs { get; set; } = 1000;
 
     /// <summary>
-    /// System prompt for test generation
+    /// System prompt for the AI assistant
     /// </summary>
-    public string SystemPrompt { get; set; } = @"
-You are an expert test automation engineer specialized in creating comprehensive, reliable automated tests. 
-Your role is to analyze user stories, requirements, and feedback to generate high-quality test scenarios 
-that thoroughly validate software functionality.
-
-Key principles:
-- Create realistic, executable test steps
-- Focus on both positive and negative test cases
-- Include proper assertions and validations
-- Consider edge cases and error scenarios
-- Optimize for maintainability and reliability
-- Use industry best practices for test design
-
-Always respond with valid JSON in the exact format requested.
-";
+    public string SystemPrompt { get; set; } = "You are an expert test automation engineer specializing in converting user stories into comprehensive, executable test scenarios.";
 
     /// <summary>
-    /// Whether to enable caching of LLM responses
+    /// Enable response caching
     /// </summary>
-    public bool EnableCaching { get; set; } = true;
+    public bool EnableCaching { get; set; } = false;
 
     /// <summary>
     /// Cache duration in minutes
@@ -80,81 +65,101 @@ Always respond with valid JSON in the exact format requested.
     public int CacheDurationMinutes { get; set; } = 60;
 
     /// <summary>
-    /// Whether to log LLM requests and responses
+    /// Enable detailed logging
     /// </summary>
-    public bool EnableLogging { get; set; } = false;
+    public bool EnableLogging { get; set; } = true;
 
     /// <summary>
-    /// Custom endpoint URL (for using other OpenAI-compatible APIs)
+    /// Rate limiting configuration
     /// </summary>
-    public string? CustomEndpoint { get; set; }
+    public RateLimitConfiguration RateLimit { get; set; } = new();
 
     /// <summary>
-    /// Additional headers for API requests
+    /// Validate the configuration
     /// </summary>
-    public Dictionary<string, string> AdditionalHeaders { get; set; } = new();
+    public bool IsValid()
+    {
+        if (string.IsNullOrWhiteSpace(ApiKey))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(Model))
+        {
+            return false;
+        }
+
+        if (MaxTokens <= 0 || MaxTokens > 32000)
+        {
+            return false;
+        }
+
+        if (Temperature < 0.0 || Temperature > 2.0)
+        {
+            return false;
+        }
+
+        if (TimeoutSeconds <= 0)
+        {
+            return false;
+        }
+
+        return true;
+    }
 
     /// <summary>
-    /// Rate limiting settings
+    /// Get validation errors
     /// </summary>
-    public RateLimitSettings RateLimit { get; set; } = new();
-
-    /// <summary>
-    /// Validates the configuration
-    /// </summary>
-    /// <returns>List of validation errors</returns>
-    public List<string> Validate()
+    public List<string> GetValidationErrors()
     {
         var errors = new List<string>();
 
         if (string.IsNullOrWhiteSpace(ApiKey))
+        {
             errors.Add("ApiKey is required");
+        }
 
         if (string.IsNullOrWhiteSpace(Model))
+        {
             errors.Add("Model is required");
+        }
 
-        if (MaxTokens <= 0)
-            errors.Add("MaxTokens must be positive");
+        if (MaxTokens <= 0 || MaxTokens > 32000)
+        {
+            errors.Add("MaxTokens must be between 1 and 32000");
+        }
 
         if (Temperature < 0.0 || Temperature > 2.0)
+        {
             errors.Add("Temperature must be between 0.0 and 2.0");
-
-        if (TopP <= 0.0 || TopP > 1.0)
-            errors.Add("TopP must be between 0.0 and 1.0");
+        }
 
         if (TimeoutSeconds <= 0)
-            errors.Add("TimeoutSeconds must be positive");
-
-        if (MaxRetries < 0)
-            errors.Add("MaxRetries cannot be negative");
-
-        if (RetryDelayMs < 0)
-            errors.Add("RetryDelayMs cannot be negative");
-
-        if (CacheDurationMinutes <= 0)
-            errors.Add("CacheDurationMinutes must be positive");
+        {
+            errors.Add("TimeoutSeconds must be greater than 0");
+        }
 
         return errors;
     }
 }
 
 /// <summary>
-/// Rate limiting configuration
+/// Rate limiting configuration for OpenAI API
 /// </summary>
-public class RateLimitSettings
+public class RateLimitConfiguration
 {
     /// <summary>
     /// Maximum requests per minute
     /// </summary>
-    public int RequestsPerMinute { get; set; } = 60;
+    public int RequestsPerMinute { get; set; } = 100;
 
     /// <summary>
     /// Maximum tokens per minute
     /// </summary>
-    public int TokensPerMinute { get; set; } = 90000;
+    public int TokensPerMinute { get; set; } = 120000;
 
     /// <summary>
-    /// Whether to enable rate limiting
+    /// Enable rate limiting
     /// </summary>
     public bool Enabled { get; set; } = true;
 }
