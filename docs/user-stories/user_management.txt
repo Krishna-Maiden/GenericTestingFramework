@@ -1,0 +1,3 @@
+1.As an admin, I need to login to https://maidencube.com/cube-admin-prod/ with username: admin@confess.com and password: Admin@123 so I can access the admin dashboard.
+2. After loading dashboard, select User Management from side bar
+3. After selecting User Management, select User card
