@@ -66,9 +66,9 @@ CONTEXT:
 
 IMPORTANT SELECTOR STRATEGY:
 - Use multiple fallback selectors for each element (CSS selectors, attribute-based)
-- Common email/username field selectors: input[type='email'], input[name*='email'], input[name*='username'], input[placeholder*='email'], input[placeholder*='username'], #email, #username, .email-input, .username-input
-- Common password field selectors: input[type='password'], input[name*='password'], input[placeholder*='password'], #password, .password-input
-- Common button selectors: button[type='submit'], input[type='submit'], button:contains('Login'), button:contains('Sign'), .login-btn, .btn-login, .submit-btn
+- Common email/username field selectors: input[type='email'], input[name*='email'], input[name*='username'], input[name*='user'], input[placeholder*='email'], input[placeholder*='username'], input[placeholder*='user'], input[formcontrolname*='email'], input[formcontrolname*='username'], input[formcontrolname*='user'], input[aria-label*='email'], input[aria-label*='username'], input[aria-label*='user'], #email, #username, #user, .email-input, .username-input, .user-input, [data-testid*='email'], [data-testid*='username'], [data-testid*='user']
+- Common password field selectors: input[type='password'], input[name*='password'], input[name*='pass'], input[placeholder*='password'], input[placeholder*='pass'], input[formcontrolname*='password'], input[aria-label*='password'], #password, #pass, .password-input, .pass-input, [data-testid*='password'], [data-testid*='pass']
+- Common button selectors: button[type='submit'], input[type='submit'], button:contains('Login'), button:contains('Sign'), .login-btn, .btn-login, .submit-btn, .btn-primary, [aria-label*='login'], [aria-label*='sign'], [data-testid*='login'], [data-testid*='submit']
 
 REQUIRED JSON FORMAT (copy this structure exactly):
 {{
@@ -109,7 +109,7 @@ REQUIRED JSON FORMAT (copy this structure exactly):
       ""order"": 3,
       ""action"": ""enter_text"",
       ""description"": ""Enter admin username/email"",
-      ""target"": ""input[type='email'], input[name*='email'], input[name*='username'], input[placeholder*='email'], input[placeholder*='username'], #email, #username, .email-input, .username-input, [data-testid*='email'], [data-testid*='username']"",
+      ""target"": ""input[type='email'], input[name*='email'], input[name*='username'], input[name*='user'], input[placeholder*='email'], input[placeholder*='username'], input[placeholder*='user'], input[formcontrolname*='email'], input[formcontrolname*='username'], input[formcontrolname*='user'], input[aria-label*='email'], input[aria-label*='username'], input[aria-label*='user'], #email, #username, #user, .email-input, .username-input, .user-input, [data-testid*='email'], [data-testid*='username'], [data-testid*='user']"",
       ""parameters"": {{
         ""value"": ""{extractedUsername}"",
         ""clearFirst"": ""true""
@@ -121,7 +121,7 @@ REQUIRED JSON FORMAT (copy this structure exactly):
       ""order"": 4,
       ""action"": ""enter_text"",
       ""description"": ""Enter admin password"",
-      ""target"": ""input[type='password'], input[name*='password'], input[placeholder*='password'], #password, .password-input, [data-testid*='password']"",
+      ""target"": ""input[type='password'], input[name*='password'], input[name*='pass'], input[placeholder*='password'], input[placeholder*='pass'], input[formcontrolname*='password'], input[aria-label*='password'], #password, #pass, .password-input, .pass-input, [data-testid*='password'], [data-testid*='pass']"",
       ""parameters"": {{
         ""value"": ""{extractedPassword}"",
         ""clearFirst"": ""true""
@@ -133,7 +133,7 @@ REQUIRED JSON FORMAT (copy this structure exactly):
       ""order"": 5,
       ""action"": ""click"",
       ""description"": ""Click login/submit button"",
-      ""target"": ""button[type='submit'], input[type='submit'], button:contains('Login'), button:contains('Sign'), .login-btn, .btn-login, .submit-btn, .btn-primary, [data-testid*='login'], [data-testid*='submit']"",
+      ""target"": ""button[type='submit'], input[type='submit'], button:contains('Login'), button:contains('Sign'), .login-btn, .btn-login, .submit-btn, .btn-primary, button[aria-label*='login'], input[aria-label*='login'], button[aria-label*='sign'], input[aria-label*='sign'], [data-testid*='login'], [data-testid*='submit']"",
       ""parameters"": {{}},
       ""expectedResult"": ""Login form is submitted"",
       ""timeout"": 15
